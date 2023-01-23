@@ -9934,6 +9934,7 @@ class RockStar extends CI_Controller
 				}
 			}
 			if ($input) {
+				$this->fortune_of_wheel_user_cover_check($datas['userId']);
 				$message = [
 					'success' => '1',
 					'message' => 'Image added Successfully'
@@ -15310,6 +15311,65 @@ class RockStar extends CI_Controller
 		}
 	}
 
+	public function spin_count(){
+		if($_SERVER['REQUEST_METHOD'] === 'POST'){
+
+			$user = $this->db->get_where('users', ['id' => $this->input->post('userId')])->row_array();
+			if(empty($user)){
+				echo json_encode([
+					'status' => 0,
+					'message' => 'invalid userId'
+				]);exit;
+			}
+
+
+
+			$week = ['seven' => date('Y-m-d', strtotime("-6 days")), 'six' => date('Y-m-d', strtotime("-5 days")), 'five' => date('Y-m-d', strtotime("-4 days")), 'four' => date('Y-m-d', strtotime("-3 days")), 'three' => date('Y-m-d', strtotime("-2 days")), 'two' => date('Y-m-d', strtotime("-1 days")), 'one' => date('Y-m-d')];
+			// print_r($week);echo "...";
+
+			$last = [];
+			foreach($week as $days){
+				
+				$get = $this->db->get_where('dailyLogin', ['userId' => $user['id'], 'date' => $days])->row_array();
+				if(!!$get){
+					$last[] = $get;
+				}
+			}
+
+			// print_r($last);exit;
+
+			if(count($last) >= '7'){
+
+				$check_count = $this->db->get_where('daily_login_reward_count', ['userId' => $user['id'], 'date' => date('Y-m-d')])->num_rows();
+
+				$check_count = $this->db->get_where('daily_login_reward_count', ['userId' => $user['id'], 'date' => date('Y-m-d')])->num_rows();
+
+				$count = 3 - $check_count ? : 0;
+
+				echo json_encode([
+					'status' => 1,
+					'message' => 'data found',
+					'details' => $count
+				]);exit;
+
+			}else{
+				echo json_encode([
+					'status' => 0,
+					'message' => 'seven days streak not found'
+				]);exit;
+			}
+
+
+			
+
+		}else{
+			echo json_encode([
+				'status' => 0,
+				'message' => 'Method not allowed'
+			]);exit;
+		}
+	}
+
 	public function daily_login_win(){
 		if($_SERVER['REQUEST_METHOD'] === 'POST'){
 
@@ -15332,6 +15392,8 @@ class RockStar extends CI_Controller
 					$last[] = $get;
 				}
 			}
+
+			// print_r($last);exit;
 
 			if(count($last) >= '7'){
 
@@ -15585,6 +15647,133 @@ class RockStar extends CI_Controller
 
 		}else{
 			http_response_code(405);
+			echo json_encode([
+				'status' => 0,
+				'message' => 'Method not allowed'
+			]);exit;
+		}
+	}
+
+	public function give_spin_wheel_prize(){
+		if($_SERVER['REQUEST_METHOD'] === 'POST'){
+
+			$user = $this->db->get_where('users', ['id' => $this->input->post('userId')])->row_array();
+			if(empty($user)){
+				echo json_encode([
+					'status' => 0,
+					'message' => 'invalid userId'
+				]);exit;
+			}
+
+			if($this->input->post('type') < 1 || $this->input->post('type') > 8){
+				echo json_encode([
+					'status' => 0,
+					'message' => 'invalid type'
+				]);exit;
+			}
+
+			$type = $this->input->post('type');
+			switch($type){
+				case '1':
+					// user will get vip for 3days
+					break;
+				
+				case '2':
+					// user will get x50 gold coins
+					break;
+
+				case '3':
+					// user will get 1 free frame
+					break;
+
+				case '4':
+					// user will get x1 gold coin
+					break;
+
+				case '5':
+					$data['silverCoins'] = $user['silverCoins'];
+					$data['silverCoins'] *= 150;
+					break;
+
+				case '6':
+					// user will get free frame for 3 days
+					break;
+
+				case '7':
+					// user will get x5 gold coins
+					break;
+
+				case '8':
+					// user will get car for 3 days
+					break;
+			}
+
+			if($this->db->set($data)->where('id', $user['id'])->update('users')){
+				echo json_encode([
+					'status' => 1,
+					'message' => 'prize given',
+					'details' => $data
+				]);exit;
+			}else{
+				echo json_encode([
+					'status' => 0,
+					'message' => 'DB error'
+				]);exit;
+			}
+
+
+		}else{
+			echo json_encode([
+				'status' => 0,
+				'message' => 'Method not allowed'
+			]);exit;
+		}
+	}
+
+	public function add_silver_coin(){
+		if($_SERVER['REQUEST_METHOD'] === 'POST'){
+
+			$user = $this->db->get_where('users', ['id' => $this->input->post('userId')])->row_array();
+			if(empty($user)){
+				echo json_encode([
+					'status' => 0,
+					'message' => 'invalid userId'
+				]);exit;
+			}
+
+			if(!$this->input->post('coins')){
+				echo json_encode([
+					'status' => 0,
+					'message' => 'coins required'
+				]);exit;
+			}
+
+			$data['silverCoins'] = $user['silverCoins'];
+			$data['silverCoins'] += $this->input->post('coins');
+
+			// print_r($data);exit;
+
+			if($this->db->set($data)->where('id', $user['id'])->update('users')){
+				echo json_encode([
+					'status' => 1,
+					'message' => 'coins added'
+				]);exit;
+			}else{
+
+				echo json_encode([
+					'status' => 0,
+					'message' => 'DB error'
+				]);exit;
+
+			}
+
+
+
+
+
+
+
+		}else{
 			echo json_encode([
 				'status' => 0,
 				'message' => 'Method not allowed'

@@ -4598,13 +4598,13 @@ class Bango extends CI_Controller
 					]);exit;
 				}
 
-				$getUserName = $this->db->select('username')->from('users')->order_by('id', 'desc')->get()->row_array();
-				if (empty($getUserName)) {
-					$data['username'] = '7193842';
-				} else {
-					$uname = $getUserName['username'];
-					$data['username'] = ++$uname;
-				}
+				// $getUserName = $this->db->select('username')->from('users')->order_by('id', 'desc')->get()->row_array();
+				// if (empty($getUserName)) {
+				// 	$data['username'] = '7193842';
+				// } else {
+				// 	$uname = $getUserName['username'];
+				// 	$data['username'] = ++$uname;
+				// }
 				$data['deviceId'] = $this->input->post('deviceId') ?? "";
 				$data['phone'] = $this->input->post('phone');
 				$data['reg_id'] = $this->input->post('reg_id') ?? "";
@@ -15430,6 +15430,13 @@ class Bango extends CI_Controller
 				$checkPhone = $this->db->get_where('users', ['phone' => $this->input->post('phone')])->row_array();
 				if(empty($checkPhone)){
 
+					$getUserName = $this->db->select('username')->from('users')->order_by('id', 'desc')->get()->row_array();
+					if (empty($getUserName)) {
+						$datas['username'] = '7193842';
+					} else {
+						$uname = $getUserName['username'];
+						$datas['username'] = ++$uname;
+					}
 					$datas['phone'] = $this->input->post('phone');
 					
 					$this->db->insert('users', $datas);
