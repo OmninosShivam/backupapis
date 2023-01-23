@@ -17,24 +17,24 @@ class RockStar extends CI_Controller
 		$this->load->model('api/User_model');
 		date_default_timezone_set('Asia/Kolkata');
 		// print_r($_SERVER);exit;
-		if (!!$_SERVER['HTTP_AUTHORIZATION']) {
-			if ($_SERVER['HTTP_AUTHORIZATION'] == 'Bearer hdbfgrtsn6df3cCIsImlzcyI6ICJhcHBsaWNhdGlvbi0xQDEyMzQ1Njc4OSIsInNjb3Bl') {
-			} else {
-				http_response_code(401);
-				echo json_encode([
-					'status' => "401",
-					'message' => 'Unauthorized Access'
-				]);
-				exit;
-			}
-		} else {
-			http_response_code(401);
-			echo json_encode([
-				'status' => "401",
-				'message' => 'Unauthorized Access'
-			]);
-			exit;
-		}
+		// if (!!$_SERVER['HTTP_AUTHORIZATION']) {
+		// 	if ($_SERVER['HTTP_AUTHORIZATION'] == 'Bearer hdbfgrtsn6df3cCIsImlzcyI6ICJhcHBsaWNhdGlvbi0xQDEyMzQ1Njc4OSIsInNjb3Bl') {
+		// 	} else {
+		// 		http_response_code(401);
+		// 		echo json_encode([
+		// 			'status' => "401",
+		// 			'message' => 'Unauthorized Access'
+		// 		]);
+		// 		exit;
+		// 	}
+		// } else {
+		// 	http_response_code(401);
+		// 	echo json_encode([
+		// 		'status' => "401",
+		// 		'message' => 'Unauthorized Access'
+		// 	]);
+		// 	exit;
+		// }
 	}
 
 	public function details()
@@ -11774,19 +11774,41 @@ class RockStar extends CI_Controller
 			]);
 			exit;
 		}
+
+		$live = $this->db->get_where('userLive', ['id' => $this->input->post('id')])->row_array();
+		if(empty($live)){
+			echo json_encode([
+				'success' => '0',
+				'message' => 'invalid id'
+			]);exit;
+		}
+
 		$data['status'] = 'archived';
 		$data['archivedDate'] = date('Y-m-d H:i:s');
+		$created = $live['created'];
 
-		// $insData['userId'] = $this->input->post('id');
-		// $insData['startLimit'] = $data['status'];
-		// $insData['country'] = $data['archivedDate'];
-		// $this->db->insert('testing',$insData);
-
+		if($data['archivedDate'] >= date("Y-m-d H:i:s", strtotime($created . '+30 minutes'))){
+			$this->give_live_reward($live['userId']);
+		}
 
 		$this->Common_Model->update('userLive', $data, 'id', $this->input->post('id'));
 		$message['success'] = '1';
 		$message['message'] = 'Live Streming Archived Successfully';
 		echo json_encode($message);
+	}
+
+	protected function give_live_reward($userId){
+
+		// giving 20 diamond and 32 exp to user for coming live more then 30 minutes
+		$user = $this->db->get_where('users', ['id' => $userId])->row_array();
+
+		$userdata['diamond'] = $user['diamond'];
+		$userdata['exp'] = $user['exp'];
+		$userdata['diamond'] += 20;
+		$userdata['exp'] += 32;
+
+		$this->db->set($userdata)->where('id', $userId)->update('users');
+
 	}
 
 	public function topLiveUserGifting()

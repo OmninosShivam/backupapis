@@ -3,7 +3,8 @@ defined('BASEPATH') OR exit('No direct script access allowed');
 use Razorpay\Api\Api;
 USE Aws\S3\S3Client;
 USE Twilio\Rest\Client;
-require APPPATH . '/libraries/razorpayli/autoload.php';
+require APPPATH . '/libraries/razorpay-php/Razorpay.php';
+
 
 class DateFlue extends CI_Controller {
  public function __construct(){
@@ -17350,10 +17351,298 @@ public function getVideo(){
 		
 	}
 
+	public function bank_details(){
+		if($_SERVER['REQUEST_METHOD'] === 'GET'){
+
+			$banks = $this->db->select('bank_name')
+							  ->from('bank_details')
+							  ->group_by('bank_name')
+							  ->order_by('bank_name')
+							  ->get()->result_array();
+
+							  if(empty($banks)){
+								echo json_encode([
+									'status' => 0,
+									'message' => 'No banks found'
+								]);exit;
+							  }
+
+							  echo json_encode([
+								'status' => 1,
+								'message' => 'bank details found',
+								'details' => $banks
+							  ]);exit;
+
+		}else{
+			echo json_encode([
+				'status' => 0,
+				'message' => 'Method not allowed'
+			]);exit;
+		}
+	}
+
+	public function add_bank_account(){
+		if($_SERVER['REQUEST_METHOD'] === 'POST'){
+
+			$user = $this->db->get_where('users', ['id' => $this->input->post('userId')])->row_array();
+			// print_r($user);exit;
+			if(empty($user)){
+				echo json_encode([
+					'status' => 0,
+					'message' => 'invalid userId'
+				]);exit;
+			}
+
+			$bank = $this->db->get_where('bank_details', ['bank_id' => $this->input->post('bankId')])->row_array();
+			if(empty($bank)){
+				echo json_encode([
+					'status' => 0,
+					'message' => 'invalid bankId'
+				]);exit;
+			}
+
+			if(!$this->input->post('ifsc_code')){
+				echo json_encode([
+					'status' => 0,
+					'message' => 'ifsc_code required'
+				]);exit;
+			}
+
+			if(!$this->input->post('account_number')){
+				echo json_encode([
+					'status' => 0,
+					'message' => 'account_number required'
+				]);exit;
+			}
+
+			// if(!$this->input->post('nickname')){
+			// 	echo json_encode([
+			// 		'status' => 0,
+			// 		'message' => 'nickname required'
+			// 	]);exit;
+			// }
+
+			$check = $this->db->get_where('user_bank_account', ['userId' => $user['id'], 'bankId' => $bank['bank_id'], 'account_number' => $this->input->post('account_number')])->row_array();
+			if(!!$check){
+				echo json_encode([
+					'status' => 0,
+					'message' => 'this account number has already registered by the user'
+				]);exit;
+			}
+
+			$data['userId'] = $user['id'];
+			$data['bankId'] = $bank['bank_id'];
+			$data['ifsc_code'] = $this->input->post('ifsc_code');
+			$data['account_number'] = $this->input->post('account_number');
+			$data['nickname'] = $this->input->post('nickname');
+			$data['holder_name'] = $this->input->post('holder_name');
+			$data['created'] = date('Y-m-d H:i:s');
+
+			if($this->db->insert('user_bank_account', $data)){
+
+				echo json_encode([
+					'status' => 1,
+					'message' => 'user bank account registered'
+				]);exit;
+
+			}else{
+				echo json_encode([
+					'status' => 0,
+					'message' => 'DB error'
+				]);exit;
+			}
+
+		}else{
+			echo json_encode([
+				'status' => 0,
+				'message' => 'Method not allowed'
+			]);exit;
+		}
+	}
+
+
+	public function remove_bank_account(){
+		if($_SERVER['REQUEST_METHOD'] === 'POST'){
+
+			$user = $this->db->get_where('users', ['id' => $this->input->post('userId')])->row_array();
+			if(empty($user)){
+				echo json_encode([
+					'status' => 0,
+					'message' => 'inavlid userId'
+				]);exit;
+			}
+
+			$check = $this->db->get_where('user_bank_account', ['userId' => $user['id'], 'id' => $this->input->post('detailId')])->row_array();
+			if(empty($check)){
+				echo json_encode([
+					'status' => 0,
+					'message' => 'invalid details'
+				]);exit;
+			}
+
+			if($this->db->delete('user_bank_account', ['id' => $check['id']])){
+				echo json_encode([
+					'status' => 1,
+					'message' => 'deleted successfuly'
+				]);exit;
+			}else{
+				echo json_encode([
+					'status' => 0,
+					'message' => 'DB error'
+				]);exit;
+			}
+
+		}else{
+			echo json_encode([
+				'status' => 0,
+				'message' => 'Method not allowed'
+			]);exit;
+		}
+	}
+
+	public function user_bank_account_list(){
+		if($_SERVER['REQUEST_METHOD'] === 'POST'){
+
+			$user = $this->db->get_where('users', ['id' => $this->input->post('userId')])->row_array();
+			if(empty($user)){
+				echo json_encode([
+					'status' => 1,
+					'message' => 'invalid userId'
+				]);exit;
+			}
+
+			// $bank_details = $this->db->get_where('user_bank_account', ['userId' => $user['id']])->result_array();
+			$bank_details = $this->db->select('bank_details.bank_name, user_bank_account.*')
+									 ->from('user_bank_account')
+									 ->join('bank_details', 'bank_details.bank_id = user_bank_account.bankId', 'left')
+									 ->where('userId', $user['id'])
+									 ->order_by('id', 'desc')
+									 ->get()->result_array();
+									 
+			if(empty($bank_details)){
+				echo json_encode([
+					'status' => 0,
+					'message' => 'no details found'
+				]);exit;
+			}
+
+			echo json_encode([
+				'status' => 1,
+				'message' => 'details found',
+				'details' => $bank_details
+			]);exit;
+
+		}else{
+			echo json_encode([
+				'status' => 0,
+				'message' => 'Method not allowed'
+			]);exit;
+		}
+	}
+
+	public function generate_order_id(){
+		if($_SERVER['REQUEST_METHOD'] === 'POST'){
+
+			try{
+
+				if(!$this->input->post('amount')){
+					echo json_encode([
+						'status' => 0,
+						'message' => 'amount can not be empty'
+					]);exit;
+				}
+	
+				$amount = $this->input->post('amount');
+	
+				$api = new Api('rzp_test_l0iCxNFrSqR4nG', 'SoVLw255d1MwZ2ugsrKEI8F9');
+	
+				$orderData = [
+					'amount' => $amount,
+					'currency' => 'INR',
+					'payment_capture' => 1
+				];
+	
+				$pay = $api->order->create($orderData);
+	
+				echo json_encode([
+					'status' => 1,
+					'message' => 'orderId generated',
+					'orderId' => $pay['id']
+				]);exit;
+	
+			}catch (exception $e){
+	
+				echo json_encode([
+					'status' => 0,
+					'message' => $e->getMessage()
+				]);exit;
+	
+			}
+
+		}else{
+			echo json_encode([
+				'status' => 0,
+				'message' => 'Method not allowed'
+			]);exit;
+		}
+		
+	}
+
+	public function my_purchased_coins(){
+		if($_SERVER['REQUEST_METHOD'] === 'POST'){
+
+			$user = $this->db->get_where('users', ['id' => $this->input->post('userId')])->row_array();
+			if(empty($user)){
+				echo json_encode([
+					'status' => 0,
+					'message' => 'invalid userId'
+				]);exit;
+			}
+
+			$purchased_coins = $user['purchasedCoin'] ? : '0';
+
+			echo json_encode([
+				'status' => 1,
+				'message' => 'details found',
+				'wallet' => $purchased_coins
+			]);exit;
+
+		}else{
+			echo json_encode([
+				'status' => 0,
+				'message' => 'Method not allowed'
+			]);exit;
+		}
+	}
+
+	public function re
+
+	public function withdraw_my_coins(){
+		if($_SERVER['REQUEST_METHOD'] === 'POST'){
+
+			$user = $this->db->get_where('users', ['id' => $this->input->post('userId')])->row_array();
+			if(empty($user)){
+				echo json_encode([
+					'status' => 0,
+					'message' => 'invalid userId'
+				]);exit;
+			}
+
+
+
+		}else{
+			echo json_encode([
+				'status' => 0,
+				'message' => 'Method not allowed'
+			]);exit;
+		}
+	}
+
 	
 		
 
-
+// keyid rzp_test_l0iCxNFrSqR4nG
+// key secret SoVLw255d1MwZ2ugsrKEI8F9
 
 
 
