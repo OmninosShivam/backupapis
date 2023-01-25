@@ -1255,6 +1255,13 @@ class Bango extends CI_Controller
 	{
 		if ($this->input->post()) {
 
+			if($this->input->post('userId') == $this->input->post('giftUserId')){
+				echo json_encode([
+					'status' => 0,
+					'message' => 'you can not send gift to yourself'
+				]);exit;
+			}
+
 			$data['userId'] = $this->input->post('userId');
 			$data['giftUserId'] = $this->input->post('giftUserId');
 			$data['giftId'] = $this->input->post('giftId');
@@ -1267,15 +1274,13 @@ class Bango extends CI_Controller
 			}
 			if (!empty($this->input->post('liveId'))) {
 				$data['liveId'] = $this->input->post('liveId');
+
+				$live = $this->db->get_where('userLive', ['id' => $data['liveId']])->row_array();
 			}
 			if (!empty($this->input->post('pkId'))) {
 				$data['pkId'] = $this->input->post('pkId');
 				$data['type'] = 2;
 			}
-
-
-
-
 
 			// ======================= sender part =================================================
 
@@ -1352,7 +1357,7 @@ class Bango extends CI_Controller
 
 			$countStar = $this->db->select_sum('coin')
 				->from('userGiftHistory')
-				->where('giftUserId', $this->input->post('giftUserId'))
+				->where('giftUserId', $live['userId'])
 				->where('created', date('Y-m-d'))
 				->get()->row_array();
 
@@ -1374,13 +1379,10 @@ class Bango extends CI_Controller
 			}
 
 
-
-
-
 			if (!empty($this->input->post('liveId'))) {
 				$recieveCoins = $this->db->select_sum('coin')
 					->from('userGiftHistory')
-					->where('giftUserId', $this->input->post('giftUserId'))
+					->where('giftUserId', $live['userId'])
 					->where('liveId', $this->input->post('liveId'))
 					->get()->row_array();
 			}
@@ -1388,7 +1390,7 @@ class Bango extends CI_Controller
 			if (!empty($this->input->post('pkId'))) {
 				$recieveCoins = $this->db->select_sum('coin')
 					->from('userGiftHistory')
-					->where('giftUserId', $this->input->post('giftUserId'))
+					->where('giftUserId', $live['userId'])
 					->where('pkId', $this->input->post('pkId'))
 					->get()->row_array();
 			}
@@ -7935,6 +7937,8 @@ class Bango extends CI_Controller
 
 						if (date('H:i:s') < $newTime) {
 							$oldUser = true;
+						}else{
+							$this->db->set('status', 'archived')->where('id', $currentdateLive['id'])->update('userLive');
 						}
 					}
 				}
@@ -11029,7 +11033,7 @@ class Bango extends CI_Controller
 
 			$countStar = $this->db->select_sum('coin')
 				->from('userGiftHistory')
-				->where('giftUserId', $this->input->post('userId'))
+				->where('giftUserId', $id)
 				->where('created', date('Y-m-d'))
 				->get()->row_array();
 
@@ -17932,9 +17936,20 @@ class Bango extends CI_Controller
 			$senderCoin['purchasedCoin'] -= $gift['primeAccount'];
 
 			// coins adding to host account
-			$amount = (20 / 100) * $per;
+			$amount = (10 / 100) * $per;
 
+			
 			$amount *= $count;
+			
+			$giftdata['userId'] = $sender['id'];
+			$giftdata['giftUserId'] = $host['id'];
+			$giftdata['giftId'] = $gift['id'];
+			$giftdata['liveId'] = $live['id'];
+			$giftdata['coin'] = $amount;
+			$giftdata['type'] = '1';
+			$giftdata['created'] = date('Y-m-d');
+			
+			$this->db->insert('userGiftHistory', $giftdata);
 
 			$userCoin['coin'] = $host['coin'] ?: 0;
 
@@ -17958,6 +17973,8 @@ class Bango extends CI_Controller
 			$data['count'] = $count + $lastCount;
 			$data['date'] = date('Y-m-d');
 
+			$live = $this->db->get_where('userLive', ['id' => $data['liveId']])->row_array();
+
 			// print_r($data);exit;
 
 			// print_r($lastCount - $count);
@@ -17968,6 +17985,8 @@ class Bango extends CI_Controller
 				$luckCount = $this->luckyUser($data['count'], $lastCount, $count);
 			}
 
+			$data['countLucky'] = $luckCount;
+
 			if ($luckCount > 0) {
 
 				$luckyamount = (80 / 100) * $per;
@@ -17976,6 +17995,7 @@ class Bango extends CI_Controller
 				$luckyamount = (20 / 100) * $luckyamount;
 				$luckyamount *= $luckCount;
 
+				$data['luckyamount'] = $luckyamount;
 
 				$recieverLucky['coin'] += $luckyamount;
 
@@ -17988,7 +18008,7 @@ class Bango extends CI_Controller
 
 			$countStar = $this->db->select_sum('coin')
 				->from('userGiftHistory')
-				->where('giftUserId', $this->input->post('giftUserId'))
+				->where('giftUserId', $live['userId'])
 				->where('created', date('Y-m-d'))
 				->get()->row_array();
 
@@ -18020,7 +18040,7 @@ class Bango extends CI_Controller
 						'giftImage' => $gift['image'],
 						'luckCount' => $luckCount,
 						'starStatus' => $strStatus,
-						'starCount' => $countStar['coin'] ?: '0'
+						'starCount' => ''.(int)$countStar['coin'].'' ?: '0'
 					]
 				]);
 				exit;
@@ -18101,6 +18121,56 @@ class Bango extends CI_Controller
 
 
 
+
+	public function allentry(){
+		$get = $this->db->get('vips')->result_array();
+
+		echo json_encode([
+			'detail' => $get
+		]);
+	}
+
+	public function test(){
+		$get = $this->db->get('users')->result_array();
+
+
+		echo json_encode([
+			'status' => 1,
+			'message' => 'data found',
+			'details' => $get
+		]);
+		// print_r($get);exit;
+
+	}
+
+	public function test2(){
+
+		if($_SERVER['REQUEST_METHOD'] === 'POST'){
+
+			$user = $this->db->get_where('users', ['id' => $this->input->post('userId')])->row_array();
+			if(empty($user)){
+				echo json_encode([
+					'status' => 0,
+					'message' => 'invalid userId'
+				]);exit;
+			}
+
+			echo json_encode([
+				'status' => 1,
+				'message' => 'data found',
+				'details' => $user
+			]);exit;
+
+			
+
+		}else{
+			echo json_encode([
+				'status' => 0,
+				'message' => 'Method not allowed'
+			]);exit;
+		}
+
+	}
 
 
 
