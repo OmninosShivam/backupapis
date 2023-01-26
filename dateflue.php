@@ -15475,6 +15475,13 @@ class DateFlue extends CI_Controller
 				$gets['country'] = $this->db->select('name')->get_where('countries', ['id' => $gets['country']])->row_array();
 				$gets['state'] = $this->db->select('name')->get_where('states', ['id' => $gets['state']])->row_array();
 				$gets['city'] = $this->db->select('name')->get_where('cities', ['id' => $gets['city']])->row_array();
+
+				$ad = $this->db->get_where('users', ['id' => $this->input->post("userId")])->row_array();
+				if($ad['addressId'] == $gets['id']){
+					$gets['applied'] = true;
+				}else{
+					$gets['applied'] = false;
+				}
 				
 				$final[] = $gets;
 
