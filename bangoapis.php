@@ -1397,7 +1397,7 @@ class Bango extends CI_Controller
 
 
 
-			$outMess['myStar'] =  $countStar['coin'];
+			$outMess['myStar'] =  ''.(int)$countStar['coin'].'';
 			$outMess['coinsRecieved'] = $recieveCoins['coin'];
 			$outMess['liveStar'] =  '0';
 			$outMess['liveBox'] =  '0';
@@ -2728,7 +2728,7 @@ class Bango extends CI_Controller
 				$type = 'live';
 				$imgpath = $checkUser['image'];
 
-				// pushNotification($get['reg_id'], $mess, $title, $type, $imgpath);
+				pushNotification($get['reg_id'], $mess, $title, $type, $imgpath);
 
 				$message['success'] = '1';
 				$message['message'] = 'User follow succesfully';
@@ -4582,6 +4582,8 @@ class Bango extends CI_Controller
 					} else {
 						$checkData['host_status'] = '0';
 					}
+
+					$this->db->set('reg_id', $this->input->post('reg_id'))->where('id', $checkData['id'])->update('users');
 
 					$message['success'] = '1';
 					$message['message'] = 'User login successully';
@@ -8098,6 +8100,7 @@ class Bango extends CI_Controller
 		echo json_encode($message);
 	}
 
+
 	public function changeLiveStatus()
 	{
 
@@ -11052,7 +11055,7 @@ class Bango extends CI_Controller
 			}
 
 			$row['userDetails'] = $getUser;
-			$row['starCount'] = $countStar['coin'] ?: '0';
+			$row['starCount'] = ''.(int)$countStar['coin'].'' ?: '0';
 			$row['liveGift'] = $liveGift['coin'] ?: '0';
 			$row['userLevel'] = $getUser['my_level'];
 			$row['talentLevel'] = $getUser['my_level'];
@@ -11488,8 +11491,8 @@ class Bango extends CI_Controller
 						->where('giftUserId', $get['id'])
 						->get()->row_array();
 
-					$get['totalSendCoin'] = $getSender['coin'] ?: '0';
-					$get['totalGetCoins'] = $getReciver['coin'] ?: '0';
+					$get['totalSendCoin'] = ''.(int)$getSender['coin'].'' ?: '0';
+					$get['totalGetCoins'] = ''.(int)$getReciver['coin'].'' ?: '0';
 
 					if ($get['myAdminFrame'] != '0' && $get['myVipFrame'] == '0' && $get['myFrame'] == '0') {
 						$gett = $this->db->get_where('userAdminFrame', ['id' => $get['myAdminFrame']])->row_array();
@@ -17921,6 +17924,17 @@ class Bango extends CI_Controller
 					]);
 					exit;
 				}
+			} else if ($this->input->post('type') == '6') {
+				$count = 1;
+				$gift['primeAccount'] *= $count;
+				if ($sender['purchasedCoin'] < $gift['primeAccount']) {
+
+					echo json_encode([
+						'status' => 0,
+						'message' => 'insufficient balance'
+					]);
+					exit;
+				}
 			} else {
 				echo json_encode([
 					'status' => 0,
@@ -18050,7 +18064,7 @@ class Bango extends CI_Controller
 					'message' => 'lucky id hit',
 					'details' => [
 						'starStatus' => $strStatus,
-						'starCount' => $countStar['coin'] ?: "0"
+						'starCount' => ''.(int)$countStar['coin'].'' ?: "0"
 					]
 				]);
 				exit;
@@ -18115,12 +18129,6 @@ class Bango extends CI_Controller
 			return $count;
 		}
 	}
-
-
-
-
-
-
 
 	public function allentry(){
 		$get = $this->db->get('vips')->result_array();

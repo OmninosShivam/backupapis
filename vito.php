@@ -137,6 +137,7 @@ class Vito extends CI_Controller {
  }
 
 
+ 
  public function uploadVideosNew(){
    require APPPATH.'/libraries/vendor/autoload.php';
    $getUserDetails =  $this->db->get_where('users',array('id' => $this->input->post('userId')))->row_array();
@@ -158,39 +159,68 @@ class Vito extends CI_Controller {
    $data['allowComment'] = $this->input->post('allowComment');
    $data['allowDuetReact'] = $this->input->post('allowDuetReact');
    $data['soundId']  = $sound;
-   $data['status'] = '3';
+   $data['status'] = '1';
    $data['viewVideo']  = $this->input->post('viewVideo');
    $data['created'] = date('Y-m-d H:i:s');
 
-  $s3 = new Aws\S3\S3Client([
-      'version' => 'latest',
-      'region'  => 'ap-south-1',
-      'credentials' => [
-          'key'    => 'AKIA3L2TB5JIUEWHXL3L',
-          'secret' => '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'
-      ]
-  ]);
-  $bucket = 'zebovideos';
+//   $s3 = new Aws\S3\S3Client([
+//       'version' => 'latest',
+//       'region'  => 'ap-south-1',
+//       'credentials' => [
+//           'key'    => 'AKIA3L2TB5JIUEWHXL3L',
+//           'secret' => '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'
+//       ]
+//   ]);
+//   $bucket = 'zebovideos';
 
-  $upload = $s3->upload($bucket, $_FILES['videoPath']['name'], fopen($_FILES['videoPath']['tmp_name'], 'rb'), 'public-read');
-  $url = $upload->get('ObjectURL');
-  if(!empty($url)){
-    $data['videoPath'] = 'http://d2jnk8mn26fih3.cloudfront.net/'.$_FILES['videoPath']['name'];
-    $data['downloadPath'] = 'http://d2jnk8mn26fih3.cloudfront.net/'.$_FILES['videoPath']['name'];
-  }
-  else{
-    $data['videoPath'] = '';
-    $data['downloadPath'] = '';
-  }
+ 
+      
+      if (!empty($_FILES["videoPath"]["name"])) {
+        	$name= time().'_'.$_FILES["videoPath"]["name"];
+        	$liciense_tmp_name=$_FILES["videoPath"]["tmp_name"];
+        	$error=$_FILES["videoPath"]["error"];
+        	$liciense_path='uploads/users/'.$name;
+        	move_uploaded_file($liciense_tmp_name,$liciense_path);
+        	$data['videoPath']=base_url(). $liciense_path;
+    }
+    if (!empty($_FILES["videoPath"]["name"])) {
+        	$name= time().'_'.$_FILES["videoPath"]["name"];
+        	$liciense_tmp_name=$_FILES["videoPath"]["tmp_name"];
+        	$error=$_FILES["videoPath"]["error"];
+        	$liciense_path='uploads/users/'.$name;
+        	move_uploaded_file($liciense_tmp_name,$liciense_path);
+        	$data['downloadPath']=base_url(). $liciense_path;
+    }
+    if (!empty($_FILES["thumbnail"]["name"])) {
+        	$name= time().'_'.$_FILES["thumbnail"]["name"];
+        	$liciense_tmp_name=$_FILES["thumbnail"]["tmp_name"];
+        	$error=$_FILES["thumbnail"]["error"];
+        	$liciense_path='uploads/users/'.$name;
+        	move_uploaded_file($liciense_tmp_name,$liciense_path);
+        	$data['thumbnail']=base_url(). $liciense_path;
+    }
+     
+        
 
-  $upload2 = $s3->upload($bucket, $_FILES['thumbnail']['name'], fopen($_FILES['thumbnail']['tmp_name'], 'rb'), 'public-read');
-  $url2 = $upload2->get('ObjectURL');
-  if(!empty($url2)){
-      $data['thumbnail'] = 'http://d2jnk8mn26fih3.cloudfront.net/'.$_FILES['thumbnail']['name'];
-  }
-  else{
-      $data['thumbnail'] = '';
-  }
+//   $upload = $s3->upload($bucket, $_FILES['videoPath']['name'], fopen($_FILES['videoPath']['tmp_name'], 'rb'), 'public-read');
+//   $url = $upload->get('ObjectURL');
+//   if(!empty($url)){
+//     $data['videoPath'] = 'http://d2jnk8mn26fih3.cloudfront.net/'.$_FILES['videoPath']['name'];
+//     $data['downloadPath'] = 'http://d2jnk8mn26fih3.cloudfront.net/'.$_FILES['videoPath']['name'];
+//   }
+//   else{
+//     $data['videoPath'] = '';
+//     $data['downloadPath'] = '';
+//   }
+
+//   $upload2 = $s3->upload($bucket, $_FILES['thumbnail']['name'], fopen($_FILES['thumbnail']['tmp_name'], 'rb'), 'public-read');
+//   $url2 = $upload2->get('ObjectURL');
+//   if(!empty($url2)){
+//       $data['thumbnail'] = 'http://d2jnk8mn26fih3.cloudfront.net/'.$_FILES['thumbnail']['name'];
+//   }
+//   else{
+//       $data['thumbnail'] = '';
+//   }
 
    $insert = $this->db->insert('userVideos',$data);
    if(!empty($insert)){
@@ -1286,9 +1316,14 @@ public function sendLiveGift(){
 											->get()->row_array();
 
 						// check balance
+						
 						$senderCoins = $senderDetails['purchasedCoin'];
 
 						$totalSendCoins = $senderDetails['total_send_coin'];
+						if($totalSendCoins == null)
+						{
+							$totalSendCoins = 0;
+						}
 
 						if($senderCoins < $data['coin']){
 							echo json_encode([
@@ -1298,7 +1333,7 @@ public function sendLiveGift(){
 						}
 
 						$senderCoins -= $data['coin'];
-
+						
 						$totalSendCoins += $data['coin'];
 
 						// ========================================== setting userLevel =============
@@ -1306,7 +1341,8 @@ public function sendLiveGift(){
 						$userLevel = $this->db->get('user_levels')->result_array();
 
 						foreach($userLevel as $level){
-							if($totalSendCoins >= $level['experince'] && $totalSendCoins <= $level['experienceTo']){
+							if($totalSendCoins >= $level['experince'] && $totalSendCoins <= $level['experienceTo'])
+							{
 								$myLevel = $level['level'];
 							}
 						}
@@ -3185,9 +3221,51 @@ public function getPurchasedCoin(){
 	}
 
 
-public function commentsOnUserUploadVideo(){
+// public function commentsOnUserUploadVideo(){
 
-    if($this->input->post()){
+//     if($this->input->post())
+// 	{
+
+//       $data['userId'] = $this->input->post("userId");
+//       $data['videoId'] = $this->input->post("videoId");
+//       $data['comment'] = $this->input->post("comment");
+
+//       $upload = $this->db->insert("videoComments",$data);
+
+//       if($upload == true)
+// 	  {
+//         $this->db->set('commentCount', 'commentCount +1', false)->where('id', $this->input->post('videoId'))->update("userVideos");
+        
+// 		echo json_encode([
+
+//           "success" => "1",
+//           "message" => "comment added successfully",
+//         ]);exit;
+
+//       }
+//       else{
+//         echo json_encode([
+
+//           "success" => "0",
+//           "message" => "something went wrong!",
+//         ]);exit;
+//       }
+//     }
+//     else{
+
+//       echo json_encode([
+
+//         "success" => "0",
+//         "message" => "Please enter valid params!",
+//       ]);exit;
+//     }
+//   }
+  //////////////////////////
+
+  public function commentsOnUserUploadVideo(){
+
+    if($this->input->post())
+	{
 
       $data['userId'] = $this->input->post("userId");
       $data['videoId'] = $this->input->post("videoId");
@@ -3195,18 +3273,35 @@ public function commentsOnUserUploadVideo(){
 
       $upload = $this->db->insert("videoComments",$data);
 
-      if($upload == true){
+      if($upload == true)
+	  {
+        $commentAdd=$this->db->set('commentCount', 'commentCount +1', false)->where('id', $this->input->post('videoId'))->update("userVideos");
+        if($commentAdd)
+		{
+			$commentCount=$this->db->select('comment')->from('videoComments')->where(['videoId' => $this->input->post("videoId")])->get()->num_rows();
+			$details['commentcount']="$commentCount";
+			if($commentCount > 0)
+			{
+				$commentStatus=$this->db->select('comment')->from('videoComments')->where(['videoId' => $this->input->post("videoId"),])->get()->num_rows();
+			
+				$details['commentStatus']=true;
+			}
+			elseif($commentCount == 0)
+			{
+				$details['commentStatus']=false;
+			}
 
-        $this->db->set('commentCount', 'commentCount +1', false)->where('id', $this->input->post('videoId'))->update("userVideos");
-
-        echo json_encode([
+		}
+		echo json_encode([
 
           "success" => "1",
           "message" => "comment added successfully",
-        ]);exit;
-
+		  'details' => $details
+        ]);
+		exit;
       }
-      else{
+      else
+	  {
         echo json_encode([
 
           "success" => "0",
@@ -3223,71 +3318,257 @@ public function commentsOnUserUploadVideo(){
       ]);exit;
     }
   }
-  
-  public function getUserVideoComments(){
+  //////////////////////
 
-	$get = $this->db->select("videoComments.id videoCommentId,videoComments.videoId,videoComments.userId,videoComments.comment,users.name,users.username,users.image")
+
+//   public function getUserVideoComments()
+//   {
+// 	if(!$this->input->post('videoId'))
+// 	{
+// 		echo json_encode([
+
+// 			"success" => "0",
+// 			"message" => "Please provide videoId to get Comments.",
+// 		]);
+// 		exit;
+// 	}
+
+// 	$get = $this->db->select("videoComments.id as videoCommentId,videoComments.videoId,videoComments.userId,videoComments.comment,users.name,users.username,users.image")
+// 	->from("videoComments")
+// 	->join("users","users.id = videoComments.userId","left")
+// 	->where("videoComments.videoId",$this->input->post("videoId"))
+// 	->get()
+// 	->result_array();
+	
+// 	if(!!$get){
+
+// 		echo json_encode([
+
+// 			"success" => "1",
+// 			"message" => "comments found successfully",
+// 			"details" => $get,
+// 		]);exit;
+// 	}
+// 	else{
+
+// 		echo json_encode([
+
+// 			"success" => "0",
+// 			"message" => "comments not found!"
+// 		]);exit;
+// 	}
+//   }
+
+///////////  working here ///////////
+
+
+public function getUserVideoComments()
+  {
+	if(!$this->input->post('videoId'))
+	{
+		echo json_encode([
+
+			"success" => "0",
+			"message" => "Please provide videoId to get Comments.",
+		]);
+		exit;
+	}
+
+	$get = $this->db->select("videoComments.id as videoCommentId,videoComments.videoId,videoComments.userId,videoComments.comment,videoComments.likeCount,users.name,users.username,users.image")
 	->from("videoComments")
 	->join("users","users.id = videoComments.userId","left")
 	->where("videoComments.videoId",$this->input->post("videoId"))
 	->get()
 	->result_array();
 	
-// 	print_r($get);
-// 	die;
-
-	if(!!$get){
-
-		echo json_encode([
-
-			"success" => "1",
-			"message" => "comments found successfully",
-			"details" => $get
-		]);exit;
+	if(!empty($get))
+	{
+		$result['success'] = "1";
+		$result['message'] = "comments found successfully";
+		
+			foreach($get as $lists)
+			{
+				if($lists['likeCount'] == 0)
+				{
+  					$lists['likeStatus'] = false;
+  				}
+  				else
+				{
+  					$lists['likeStatus'] = true;
+  				}
+				$result['details'][]=$lists;
+			}
 	}
-	else{
+	else
+	{
+		$result['success'] = "0";
+		$result['message'] = "comments not found";
+	}
 
+	echo json_encode($result);
+  }
+
+
+/////////// working here  ///////////
+//  public function likeAndDislikeComments()
+//  {
+// 	 $check_like =  $this->db->get_where('videoCommentsLikeOrUnlike', array('commentId' => $this->input->post('commentId'),'userId' => $this->input->post('userId')))->row_array();
+	 
+// 	 if(!empty($check_like))
+// 	 {
+// 		 if($check_like['status'] == '0')
+// 		 {
+// 			 $status = '1';
+// 		 }
+// 		 else
+// 		 {
+// 			 $status = '0';
+// 		 }
+// 		 $data = array(
+// 			 'userId' => $this->input->post('userId'),
+// 			 'commentId' => $this->input->post('commentId'),
+// 			 'status' => $status,
+// 			 'updated' => date('Y-m-d H:i:s')
+// 		 );
+// 		 $update = $this->Common_Model->update('videoCommentsLikeOrUnlike',$data,'id',$check_like['id']);
+
+// 	 }
+// 	 else
+// 	 {
+// 		 $status = '1';
+// 		 $data = array(
+// 			 'userId' => $this->input->post('userId'),
+// 			 'commentId' => $this->input->post('commentId'),
+// 			 'status' => $status,
+// 			 'created' => date('Y-m-d H:i:s')
+// 		 );
+// 		 $insert = $this->db->insert('videoCommentsLikeOrUnlike', $data);
+// 	 }
+// 	 $likeCount = $this->db->get_where('videoCommentsLikeOrUnlike', array('commentId' => $this->input->post('commentId'),'status'=> '1'))->num_rows();
+// 	 $successmessage = array(
+// 		 'success'=>'1',
+// 		 'likeStatus'=>$status,
+// 		 'likeCount'=>(string)$likeCount
+// 	 );
+// 	 echo json_encode($successmessage);
+//  }
+
+ ///////////////////////////////
+
+ public function likeAndDislikeComments()
+ {
+	if(!($this->input->post('userId') && $this->input->post('commentId') ) )
+	{
 		echo json_encode([
 
 			"success" => "0",
-			"message" => "comments not found!"
-		]);exit;
+			"message" => "Please provide both userId & commentId.",
+		]);
+		exit;
 	}
-  }
 
- public function likeAndDislikeComments(){
-	 $check_like =  $this->db->get_where('videoCommentsLikeOrUnlike', array('commentId' => $this->input->post('commentId'),'userId' => $this->input->post('userId')))->row_array();
-	 if(!empty($check_like)){
-		 if($check_like['status'] == '0'){
-			 $status = '1';
-		 }else{
-			 $status = '0';
-		 }
-		 $data = array(
-			 'userId' => $this->input->post('userId'),
-			 'commentId' => $this->input->post('commentId'),
-			 'status' => $status,
-			 'updated' => date('Y-m-d H:i:s')
-		 );
-		 $update = $this->Common_Model->update('videoCommentsLikeOrUnlike',$data,'id',$check_like['id']);
-	 }else{
-		 $status = '1';
-		 $data = array(
-			 'userId' => $this->input->post('userId'),
-			 'commentId' => $this->input->post('commentId'),
-			 'status' => $status,
-			 'created' => date('Y-m-d H:i:s')
-		 );
-		 $insert = $this->db->insert('videoCommentsLikeOrUnlike', $data);
-	 }
-	 $likeCount = $this->db->get_where('videoCommentsLikeOrUnlike', array('commentId' => $this->input->post('commentId'),'status'=> '1'))->num_rows();
-	 $successmessage = array(
-		 'success'=>'1',
-		 'likeStatus'=>$status,
-		 'likeCount'=>(string)$likeCount
-	 );
-	 echo json_encode($successmessage);
+	$checkuser=$this->db->get_where('users', array('id' => $this->input->post('userId')))->row_array();
+	if(!$checkuser)
+	{
+		$successmessage['success']='0';
+		$successmessage['message']='Please enter a valid User Id.';
+		echo json_encode($successmessage);
+		exit;
+	}
+
+	$checkcomment=$this->db->get_where('videoComments', array('id' => $this->input->post('commentId')))->row_array();
+	if(!$checkcomment)
+	{
+		$successmessage['success']='0';
+		$successmessage['message']='Please enter a valid commentId.';
+		echo json_encode($successmessage);
+		exit;
+	}
+
+			$check_like =  $this->db->get_where('videoCommentsLikeOrUnlike', array('commentId' => $this->input->post('commentId'),'userId' => $this->input->post('userId')))->row_array();	
+			if(!empty($check_like))
+			{
+				$likeCount =  $this->db->get_where('videoComments', array('id' => $this->input->post('commentId')))->row_array(); 
+				$count=$likeCount['likeCount'];
+
+				if($check_like['status'] == '0')
+				{
+					$status = '1';
+					$count=$count+1;
+					$this->db->set('likeCount', $count);
+					$this->db->where('id', $this->input->post('commentId'));
+					$this->db->update('videoComments');
+				
+					$successmessage['success']='1';
+					$successmessage['message']='userId '.$this->input->post('userId').' has liked the comment.';
+					$successmessage['likeStatus']=$status;
+					$successmessage['likeCount']="$count";		
+					
+				}
+				else if($check_like['status'] == '1')
+				{
+					$status = '0';
+						if($count==0)
+						{
+							$count=0;
+							$this->db->set('likeCount', $count);
+							$this->db->where('id', $this->input->post('commentId'));
+							$this->db->update('videoComments');
+						}
+						else
+						{
+							$count=$count-1;
+							$this->db->set('likeCount', $count);
+							$this->db->where('id', $this->input->post('commentId'));
+							$this->db->update('videoComments');
+						}
+
+						$successmessage['success']='0';
+						$successmessage['message']='userId '.$this->input->post('userId').' has unliked the comment.';
+						$successmessage['likeStatus']=$status;
+						$successmessage['likeCount']="$count";			
+				}
+
+				$data = array(
+					'userId' => $this->input->post('userId'),
+					'commentId' => $this->input->post('commentId'),
+					'status' => $status,
+					'updated' => date('Y-m-d H:i:s')
+				);
+				$update = $this->Common_Model->update('videoCommentsLikeOrUnlike',$data,'id',$check_like['id']);	
+				
+			}
+			else
+			{
+
+				$status = '1';
+				$data = array(
+					'userId' => $this->input->post('userId'),
+					'commentId' => $this->input->post('commentId'),
+					'status' => $status,
+					'created' => date('Y-m-d H:i:s')
+				);
+				$insert = $this->db->insert('videoCommentsLikeOrUnlike', $data);
+				
+				$likeCount =  $this->db->get_where('videoComments', array('id' => $this->input->post('commentId')))->row_array(); 
+					$count=$likeCount['likeCount'];
+					
+							$count=$count+1;
+							$this->db->set('likeCount', $count);
+							$this->db->where('id', $this->input->post('commentId'));
+							$this->db->update('videoComments');
+
+					$successmessage['success']='1';
+					$successmessage['message']='userId '.$this->input->post('userId').' has liked the comment.';
+					$successmessage['likeStatus']=$status;
+					$successmessage['likeCount']="$count";		
+			}
+			//$likeCount = $this->db->get_where('videoCommentsLikeOrUnlike', array('commentId' => $this->input->post('commentId'),'status'=> '1'))->num_rows();
+
+		echo json_encode($successmessage);		
  }
+
+//////////////////////////////
 
  public function getVideoComments(){
 	 $getVideoIds = $this->Common_Model->getCommentsVideos($this->input->post('userId'),$this->input->post('videoId'));
@@ -4062,7 +4343,624 @@ public function commentsOnUserUploadVideo(){
 // 		echo json_encode($message);
 // 	}
 
-	public function getVideo(){
+////  content added here ////////////////////////////////
+// public function getVideos(){
+    
+//     if($this->input->post('userId') == null)
+// 	{    
+//         echo json_encode([
+//             "success" => "0",
+//             "message" => "userId cannot be null!"
+//             ]);
+//         exit;
+//     }
+//     	$startLimit = $this->input->post('startLimit');
+//         $endLimit = 10;
+// 		$userId = $this->input->post('userId');
+// 		$countNotification = $this->db->get_where('userNotification',array('userId' => $this->input->post('userId'),'status' => 0))->num_rows();
+
+// 		if(!empty($countNotification)){
+// 			$message['notificationCount'] = (string)$countNotification;
+// 		}
+// 		else{
+// 			$message['notificationCount'] = '0';
+// 		}
+
+// 		if($this->input->post('videoType') == 'following'){
+// 			// $list =  $this->db->query("SELECT sounds.title as soundTitle,sounds.id as soundId,users.username,users.name,users.followerCount as followers,users.image,userVideos.id, userVideos.userId,userVideos.hashtag, userVideos.description, userVideos.videoPath,userVideos.viewCount, userVideos.allowComment, userVideos.allowDownloads, userVideos.allowDuetReact,userVideos.viewVideo,userVideos.likeCount,userVideos.commentCount,userVideos.downloadPath FROM `userVideos` left join userFollow on userFollow.followingUserId = userVideos.userId left join users on users.id = userVideos.userId left join sounds on sounds.id = userVideos.soundId where userFollow.userId = $userId  and userFollow.status = '1' and userVideos.userId NOT IN (select blockUserId from blockUser where userId = $userId  ) order by RAND() LIMIT $startLimit , 5")->result_array();
+//         // $list =  $this->db->query("SELECT users.username,users.name,users.followerCount as followers,users.image,userVideos.id, userVideos.userId,userVideos.hashtag, userVideos.description, userVideos.videoPath,userVideos.viewCount, userVideos.allowComment, userVideos.allowDownloads, userVideos.allowDuetReact,userVideos.viewVideo,userVideos.likeCount,userVideos.commentCount,userVideos.downloadPath FROM `userVideos` left join userFollow on userFollow.followingUserId = userVideos.userId left join users on users.id = userVideos.userId where userFollow.userId = $userId  and userFollow.status = '1' and userVideos.userId NOT IN (select blockUserId from blockUser where userId = $userId  )")->result_array();
+
+//         $list =  $this->db->query("SELECT users.username,users.name,users.followerCount as followers,users.image, userVideos.id, userVideos.userId, userVideos.hashtag, userVideos.description, userVideos.videoPath,userVideos.viewCount, userVideos.allowComment, userVideos.allowDuetReact,userVideos.allowDownloads,userVideos.viewVideo,userVideos.likeCount,userVideos.commentCount,userVideos.downloadPath FROM `userVideos`  left join users on users.id = userVideos.userId where userVideos.viewVideo = 0 and userVideos.status = '1' and userVideos.userId NOT IN (select blockUserId from blockUser where userId = '$userId' ) and userVideos.id NOT IN (select videoId from  viewVideo where userId = '$userId' )")->result_array();
+        
+       
+// 		}
+// 		else{
+// 		// $list =  $this->db->query("SELECT users.username,users.name,users.followerCount as followers,users.image,sounds.title as soundTitle,sounds.id as soundId, userVideos.id, userVideos.userId, userVideos.hashtag, userVideos.description, userVideos.videoPath,userVideos.viewCount, userVideos.allowComment, userVideos.allowDuetReact,userVideos.allowDownloads,userVideos.viewVideo,userVideos.likeCount,userVideos.commentCount,userVideos.downloadPath FROM `userVideos` left join sounds on sounds.id = userVideos.soundId left join users on users.id = userVideos.userId where userVideos.viewVideo = 0 and userVideos.status = '1' and userVideos.userId NOT IN (select blockUserId from blockUser where userId = '$userId' ) and userVideos.id NOT IN (select videoId from  viewVideo where userId = '$userId' ) ORDER BY RAND() LIMIT $startLimit , 5")->result_array();
+
+//     //  	$list =  $this->db->query("SELECT users.username,users.name,users.followerCount as followers,users.image, userVideos.id, userVideos.userId, userVideos.hashtag, userVideos.description, userVideos.videoPath,userVideos.viewCount, userVideos.allowComment, userVideos.allowDuetReact,userVideos.allowDownloads,userVideos.viewVideo,userVideos.likeCount,userVideos.commentCount,userVideos.downloadPath FROM `userVideos`  left join users on users.id = userVideos.userId where userVideos.viewVideo = 0 and userVideos.status = '1' and userVideos.userId NOT IN (select blockUserId from blockUser where userId = '$userId' ) and userVideos.id NOT IN (select videoId from  viewVideo where userId = '$userId' )")->result_array();
+
+//      	$list =  $this->db->query("SELECT users.username,users.name,users.followerCount as followers,users.image, userVideos.id, userVideos.userId, userVideos.hashtag, userVideos.description, userVideos.videoPath,userVideos.viewCount, userVideos.allowComment, userVideos.allowDuetReact,userVideos.allowDownloads,userVideos.viewVideo,userVideos.likeCount,userVideos.commentCount,userVideos.downloadPath FROM `userVideos`  left join users on users.id = userVideos.userId where userVideos.viewVideo = 0 and userVideos.status = '1' and userVideos.userId NOT IN (select blockUserId from blockUser where userId = '$userId' ) and userVideos.id NOT IN (select videoId from  viewVideo where userId = '$userId' )")->result_array();
+// //  print_r($list);
+// //         die;
+//     }
+
+// 	 if(!empty($list)){
+//       $count = count($list);
+//       if($count < 9){
+//         // $this->db->delete('viewVideo',array('userId' => $this->input->post('userId')));
+//       }
+
+// 			$message['success'] = '1';
+// 			$message['message'] = 'List Found Successfully';
+// 			foreach($list as $lists){
+
+//         $viewVideoInsert['userId'] = $this->input->post('userId');
+//         $viewVideoInsert['videoId'] = $lists['id'];
+
+
+
+
+//         // $this->db->insert('viewVideo',$viewVideoInsert);
+//         $updateVideoCount['viewCount'] = $videoLists['viewCount'] + 1;
+//         $this->Common_Model->update('userVideos',$updateVideoCount,'id',$lists['id']);
+
+//         if(!empty($lists['name'])){
+//           $lists['username'] = $lists['name'];
+//         }
+//         else{
+//           $lists['username'] = $lists['username'];
+//         }
+// 				if(!empty($lists['downloadPath'])){
+// 					$lists['downloadPath'] = $lists['downloadPath'];
+// 				}
+// 				else{
+// 					$lists['downloadPath'] =  '';
+// 				}
+//                 if(!empty($lists['image'])){
+// 					$lists['image'] = base_url().$lists['image'];
+// 				}
+// 				else{
+// 					$lists['image'] = base_url().'uploads/no_image_available.png';
+// 				}
+// 				if(!empty($lists['hashtag'])){
+// 					$lists['hashtagTitle'] = $this->hashTagName($lists['hashtag']);
+// 					$finalTagIds = explode(',',$lists['hashtag']);
+// 					foreach($finalTagIds as $finalTagId){
+// 						$hashArray = $this->db->get_where('hashtag',array('id' => $finalTagId))->row_array();
+// 						if(!empty($hashArray)){
+// 							$lists['hastagLists'][] = $hashArray;
+// 						}
+// 					}
+// 				}
+// 				else{
+// 					$lists['hashtagTitle'] = '';
+// 					$lists['hastagLists'] = [];
+// 				}
+// 				$likeStatus = $this->db->get_where('videoLikeOrUnlike', array('videoId' => $lists['id'],'userId'=> $this->input->post('userId')))->row_array();
+//   				if(!empty($likeStatus)){
+//   					$lists['likeStatus'] = true;
+//   				}
+//   				else{
+//   					$lists['likeStatus'] = false;
+//   				}
+
+
+//         $checkFollow = $this->db->get_where('userFollow', array('userId' => $this->input->post('userId'),'followingUserId' =>$lists['userId'],'status' => '1'))->row_array();
+//         if(!empty($checkFollow)){
+//           $lists['followStatus'] = true;
+//         }
+//         else{
+//           $lists['followStatus'] = false;
+//         }
+
+// 				$message['details'][] = $lists;
+// 			}
+// 		}
+// 		else{
+//     //   $this->db->delete('viewVideo',array('userId' => $this->input->post('userId')));
+//       if($this->input->post('videoType') == 'following'){
+//         // $list =  $this->db->query("SELECT users.username,users.name,users.followerCount as followers,users.image,userVideos.id, userVideos.userId,userVideos.hashtag, userVideos.description, userVideos.videoPath,userVideos.viewCount, userVideos.allowComment, userVideos.allowDownloads, userVideos.allowDuetReact,userVideos.viewVideo,userVideos.likeCount,userVideos.commentCount,userVideos.downloadPath FROM `userVideos` left join userFollow on userFollow.followingUserId = userVideos.userId left join users on users.id = userVideos.userId  where userFollow.userId = $userId  and userFollow.status = '1' and userVideos.userId != '$userId' and userVideos.userId NOT IN (select blockUserId from blockUser where userId = $userId  ) ")->result_array();
+
+//         $list =  $this->db->query("SELECT users.username,users.name,users.followerCount as followers,users.image, userVideos.id, userVideos.userId, userVideos.hashtag, userVideos.description, userVideos.videoPath,userVideos.viewCount, userVideos.allowComment, userVideos.allowDuetReact,userVideos.allowDownloads,userVideos.viewVideo,userVideos.likeCount,userVideos.commentCount,userVideos.downloadPath FROM `userVideos`  left join users on users.id = userVideos.userId where userVideos.viewVideo = 0 and userVideos.status = '1' and userVideos.userId NOT IN (select blockUserId from blockUser where userId = '$userId' ) and userVideos.id NOT IN (select videoId from  viewVideo where userId = '$userId' )")->result_array();
+//       }
+//       else{
+//         // $list =  $this->db->query("SELECT users.username,users.name,users.followerCount as followers,users.image, userVideos.id, userVideos.userId, userVideos.hashtag, userVideos.description, userVideos.videoPath,userVideos.viewCount, userVideos.allowComment, userVideos.allowDuetReact,userVideos.allowDownloads,userVideos.viewVideo,userVideos.likeCount,userVideos.commentCount,userVideos.downloadPath FROM `userVideos`  left join users on users.id = userVideos.userId where userVideos.viewVideo = 0 and userVideos.status = '1' and userVideos.userId != '$userId' and userVideos.userId NOT IN (select blockUserId from blockUser where userId = '$userId' ) and userVideos.id NOT IN (select videoId from  viewVideo where userId = '$userId' ) ")->result_array();
+
+//         $list =  $this->db->query("SELECT users.username,users.name,users.followerCount as followers,users.image, userVideos.id, userVideos.userId, userVideos.hashtag, userVideos.description, userVideos.videoPath,userVideos.viewCount, userVideos.allowComment, userVideos.allowDuetReact,userVideos.allowDownloads,userVideos.viewVideo,userVideos.likeCount,userVideos.commentCount,userVideos.downloadPath FROM `userVideos`  left join users on users.id = userVideos.userId where userVideos.viewVideo = 0 and userVideos.status = '1' and userVideos.userId NOT IN (select blockUserId from blockUser where userId = '$userId' ) and userVideos.id NOT IN (select videoId from  viewVideo where userId = '$userId' )")->result_array();
+//       }
+
+//       if(!empty($list)){
+
+//   			$message['success'] = '1';
+//   			$message['message'] = 'List Found Successfully';
+//   			foreach($list as $lists){
+
+//           $viewVideoInsert['userId'] = $this->input->post('userId');
+//           $viewVideoInsert['videoId'] = $lists['id'];
+
+//         //   $this->db->insert('viewVideo',$viewVideoInsert);
+
+//           $updateVideoCount['viewCount'] = $videoLists['viewCount'] + 1;
+//           $this->Common_Model->update('userVideos',$updateVideoCount,'id',$videoLists['id']);
+
+//           if(!empty($lists['name'])){
+//             $lists['username'] = $lists['name'];
+//           }
+//           else{
+//             $lists['username'] = $lists['username'];
+//           }
+//   				if(!empty($lists['downloadPath'])){
+//   					$lists['downloadPath'] = $lists['downloadPath'];
+//   				}
+//   				else{
+//   					$lists['downloadPath'] =  '';
+//   				}
+
+//   				if(!empty($lists['image'])){
+// 					$lists['image'] = base_url().$lists['image'];
+// 				}
+// 				else{
+// 					$lists['image'] = base_url().'uploads/no_image_available.png';
+// 				}
+//   				if(!empty($lists['hashtag'])){
+//   					$lists['hashtagTitle'] = $this->hashTagName($lists['hashtag']);
+//   					$finalTagIds = explode(',',$lists['hashtag']);
+//   					foreach($finalTagIds as $finalTagId){
+//   						$hashArray = $this->db->get_where('hashtag',array('id' => $finalTagId))->row_array();
+//   						if(!empty($hashArray)){
+//   							$lists['hastagLists'][] = $hashArray;
+//   						}
+//   					}
+//   				}
+//   				else{
+//   					$lists['hashtagTitle'] = '';
+//   					$lists['hastagLists'] = [];
+//   				}
+//   				$likeStatus = $this->db->get_where('videoLikeOrUnlike', array('videoId' => $lists['id'],'userId'=> $this->input->post('userId')))->row_array();
+//   				if(!empty($likeStatus)){
+//   					$lists['likeStatus'] = true;
+//   				}
+//   				else{
+//   					$lists['likeStatus'] = false;
+//   				}
+
+
+//           $checkFollow = $this->db->get_where('userFollow', array('userId' => $this->input->post('userId'),'followingUserId' =>$lists['userId'],'status' => '1'))->row_array();
+//           if(!empty($checkFollow)){
+//             $lists['followStatus'] = true;
+//           }
+//           else{
+//             $lists['followStatus'] = false;
+//           }
+
+//   				$message['details'][] = $lists;
+//   			}
+//   		}
+//       else{
+// 			     $message['success'] = '0';
+// 			     $message['message'] = 'NO List Found';
+//       }
+// 		}
+// 		echo json_encode($message);
+// 	}
+
+//////////////////////////////////////////////////
+	
+
+	public function getVideo()
+	{
+    	if($this->input->post('userId')==null)
+		{
+			echo json_encode([
+				"success" => "0",
+				"message" => "userId cannot be null!"
+				]);
+			exit;
+		}
+		$startLimit = $this->input->post('startLimit');
+        $endLimit = 10;
+		$userId = $this->input->post('userId');
+		$countNotification = $this->db->get_where('userNotification',array('userId' => $this->input->post('userId'),'status' => 0))->num_rows();
+
+		if(!empty($countNotification)){
+			$message['notificationCount'] = (string)$countNotification;
+		}
+		else{
+			$message['notificationCount'] = '0';
+		}
+
+		if($this->input->post('videoType') == 'following'){
+			// $list =  $this->db->query("SELECT sounds.title as soundTitle,sounds.id as sou ndId,users.username,users.name,users.followerCount as followers,users.image,userVideos.id, userVideos.userId,userVideos.hashtag, userVideos.description, userVideos.videoPath,userVideos.viewCount, userVideos.allowComment, userVideos.allowDownloads, userVideos.allowDuetReact,userVideos.viewVideo,userVideos.likeCount,userVideos.commentCount,userVideos.downloadPath FROM `userVideos` left join userFollow on userFollow.followingUserId = userVideos.userId left join users on users.id = userVideos.userId left join sounds on sounds.id = userVideos.soundId where userFollow.userId = $userId  and userFollow.status = '1' and userVideos.userId NOT IN (select blockUserId from blockUser where userId = $userId  ) order by RAND() LIMIT $startLimit , 5")->result_array();
+        $list =  $this->db->query("SELECT users.username,users.name,users.followerCount as followers,users.image,userVideos.id, userVideos.userId,userVideos.hashtag, userVideos.description, userVideos.videoPath,userVideos.viewCount, userVideos.allowComment, userVideos.allowDownloads, userVideos.allowDuetReact,userVideos.viewVideo,userVideos.likeCount,userVideos.commentCount,userVideos.downloadPath FROM `userVideos` left join userFollow on userFollow.followingUserId = userVideos.userId left join users on users.id = userVideos.userId where userFollow.userId = $userId  and userFollow.status = '1' and userVideos.userId NOT IN (select blockUserId from blockUser where userId = $userId  )")->result_array();
+		}
+		else{
+		// $list =  $this->db->query("SELECT users.username,users.name,users.followerCount as followers,users.image,sounds.title as soundTitle,sounds.id as soundId, userVideos.id, userVideos.userId, userVideos.hashtag, userVideos.description, userVideos.videoPath,userVideos.viewCount, userVideos.allowComment, userVideos.allowDuetReact,userVideos.allowDownloads,userVideos.viewVideo,userVideos.likeCount,userVideos.commentCount,userVideos.downloadPath FROM `userVideos` left join sounds on sounds.id = userVideos.soundId left join users on users.id = userVideos.userId where userVideos.viewVideo = 0 and userVideos.status = '1' and userVideos.userId NOT IN (select blockUserId from blockUser where userId = '$userId' ) and userVideos.id NOT IN (select videoId from  viewVideo where userId = '$userId' ) ORDER BY RAND() LIMIT $startLimit , 5")->result_array();
+
+     	$list =  $this->db->query("SELECT users.username,users.name,users.followerCount as followers,users.image, userVideos.id, userVideos.userId, userVideos.hashtag, userVideos.description, userVideos.videoPath,userVideos.viewCount, userVideos.allowComment, userVideos.allowDuetReact,userVideos.allowDownloads,userVideos.viewVideo,userVideos.likeCount,userVideos.commentCount,userVideos.downloadPath FROM `userVideos` left join users on users.id = userVideos.userId where userVideos.viewVideo = 0 and userVideos.status = '1' and userVideos.userId NOT IN (select blockUserId from blockUser where userId = '$userId' ) and userVideos.id NOT IN (select videoId from  viewVideo where userId = '$userId' )")->result_array();
+
+    	}
+
+	 if(!empty($list))
+	 {
+		$count = count($list);
+		if($count < 9)
+		{
+			$this->db->delete('viewVideo',array('userId' => $this->input->post('userId')));
+		}
+
+			$message['success'] = '1';
+			$message['message'] = 'List Found Successfully';
+			foreach($list as $lists)
+			{
+
+				$viewVideoInsert['userId'] = $this->input->post('userId');
+				$viewVideoInsert['videoId'] = $lists['id'];
+
+
+				$this->db->insert('viewVideo',$viewVideoInsert);
+				$updateVideoCount['viewCount'] = $videoLists['viewCount'] + 1;
+				$this->Common_Model->update('userVideos',$updateVideoCount,'id',$lists['id']);
+
+				if(!empty($lists['name'])){
+				$lists['username'] = $lists['name'];
+				}
+				else{
+				$lists['username'] = $lists['username'];
+				}
+				if(!empty($lists['downloadPath'])){
+					$lists['downloadPath'] = $lists['downloadPath'];
+				}
+				else{
+					$lists['downloadPath'] =  '';
+				}
+
+				if(empty($lists['image'])){
+					$lists['image'] = base_url().'uploads/no_image_available.png';
+				}
+				if(!empty($lists['hashtag'])){
+					$lists['hashtagTitle'] = $this->hashTagName($lists['hashtag']);
+					$finalTagIds = explode(',',$lists['hashtag']);
+					foreach($finalTagIds as $finalTagId){
+						$hashArray = $this->db->get_where('hashtag',array('id' => $finalTagId))->row_array();
+						if(!empty($hashArray)){
+							$lists['hastagLists'][] = $hashArray;
+						}
+					}
+				}
+				else{
+					$lists['hashtagTitle'] = '';
+					$lists['hastagLists'] = [];
+				}
+				$likeStatus = $this->db->get_where('videoLikeOrUnlike', array('videoId' => $lists['id'],'userId'=> $this->input->post('userId'),'status' => '1'))->row_array();
+				if(!empty($likeStatus)){
+					$lists['likeStatus'] = true;
+				}
+				else{
+					$lists['likeStatus'] = false;
+				}
+
+
+        	$checkFollow = $this->db->get_where('userFollow', array('userId' => $this->input->post('userId'),'followingUserId' =>$lists['userId'],'status' => '1'))->row_array();
+			if(!empty($checkFollow))
+			{
+			$lists['followStatus'] = '1';
+			}
+			else
+			{
+			$lists['followStatus'] = '0';
+			}
+
+			$message['details'][] = $lists;
+			}
+		}
+		else{
+      $this->db->delete('viewVideo',array('userId' => $this->input->post('userId')));
+      if($this->input->post('videoType') == 'following'){
+        $list =  $this->db->query("SELECT users.username,users.name,users.followerCount as followers,users.image,userVideos.id, userVideos.userId,userVideos.hashtag, userVideos.description, userVideos.videoPath,userVideos.viewCount, userVideos.allowComment, userVideos.allowDownloads, userVideos.allowDuetReact,userVideos.viewVideo,userVideos.likeCount,userVideos.commentCount,userVideos.downloadPath FROM `userVideos` left join userFollow on userFollow.followingUserId = userVideos.userId left join users on users.id = userVideos.userId  where userFollow.userId = $userId  and userFollow.status = '1' and userVideos.userId NOT IN (select blockUserId from blockUser where userId = $userId  ) ")->result_array();
+      }
+      else{
+        $list =  $this->db->query("SELECT users.username,users.name,users.followerCount as followers,users.image, userVideos.id, userVideos.userId, userVideos.hashtag, userVideos.description, userVideos.videoPath,userVideos.viewCount, userVideos.allowComment, userVideos.allowDuetReact,userVideos.allowDownloads,userVideos.viewVideo,userVideos.likeCount,userVideos.commentCount,userVideos.downloadPath FROM `userVideos` left join users on users.id = userVideos.userId where userVideos.viewVideo = 0 and userVideos.status = '1' and userVideos.userId NOT IN (select blockUserId from blockUser where userId = '$userId' ) and userVideos.id NOT IN (select videoId from  viewVideo where userId = '$userId' ) ")->result_array();
+      }
+
+      if(!empty($list)){
+
+  			$message['success'] = '1';
+  			$message['message'] = 'List Found Successfully';
+  			foreach($list as $lists){
+
+          $viewVideoInsert['userId'] = $this->input->post('userId');
+          $viewVideoInsert['videoId'] = $lists['id'];
+
+          $this->db->insert('viewVideo',$viewVideoInsert);
+
+          $updateVideoCount['viewCount'] = $videoLists['viewCount'] + 1;
+          $this->Common_Model->update('userVideos',$updateVideoCount,'id',$videoLists['id']);
+
+          if(!empty($lists['name'])){
+            $lists['username'] = $lists['name'];
+          }
+          else{
+            $lists['username'] = $lists['username'];
+          }
+  				if(!empty($lists['downloadPath'])){
+  					$lists['downloadPath'] = $lists['downloadPath'];
+  				}
+  				else{
+  					$lists['downloadPath'] =  '';
+  				}
+
+  				if(empty($lists['image'])){
+  					$lists['image'] = base_url().'uploads/no_image_available.png';
+  				}
+  				if(!empty($lists['hashtag'])){
+  					$lists['hashtagTitle'] = $this->hashTagName($lists['hashtag']);
+  					$finalTagIds = explode(',',$lists['hashtag']);
+  					foreach($finalTagIds as $finalTagId){
+  						$hashArray = $this->db->get_where('hashtag',array('id' => $finalTagId))->row_array();
+  						if(!empty($hashArray)){
+  							$lists['hastagLists'][] = $hashArray;
+  						}
+  					}
+  				}
+  				else{
+  					$lists['hashtagTitle'] = '';
+  					$lists['hastagLists'] = [];
+  				}
+  				$likeStatus = $this->db->get_where('videoLikeOrUnlike', array('videoId' => $lists['id'],'userId'=> $this->input->post('userId'),'status'=> '1'))->row_array();
+  				if(!empty($likeStatus)){
+  					$lists['likeStatus'] = true;
+  				}
+  				else{
+  					$lists['likeStatus'] = false;
+  				}
+
+
+          $checkFollow = $this->db->get_where('userFollow', array('userId' => $this->input->post('userId'),'followingUserId' =>$lists['userId'],'status' => '1'))->row_array();
+          if(!empty($checkFollow)){
+            $lists['followStatus'] = '1';
+          }
+          else{
+            $lists['followStatus'] = '0';
+          }
+
+  				$message['details'][] = $lists;
+  			}
+  		}
+      else{
+			     $message['success'] = '0';
+			     $message['message'] = 'NO List Found';
+      }
+		}
+		echo json_encode($message);
+	}
+
+	///////////////  Working API for get Videos ///////////////////
+	public function getVideoo()
+	{
+    	if($this->input->post('userId')==null)
+		{
+			echo json_encode([
+				"success" => "0",
+				"message" => "userId cannot be null!"
+				]);
+			exit;
+		}
+		$userId = $this->input->post('userId');
+		$countNotification = $this->db->get_where('userNotification',array('userId' => $this->input->post('userId'),'status' => 0))->num_rows();
+
+		if(!empty($countNotification)){
+			$message['notificationCount'] = (string)$countNotification;
+		}
+		else
+		{
+			$message['notificationCount'] = '0';
+		}
+
+		if($this->input->post('videoType') == 'following')
+		{
+			$getVideoDetails =  $this->db->query("SELECT users.username,users.name,users.followerCount as followers,users.image,userVideos.id, userVideos.userId,userVideos.hashtag, userVideos.description, userVideos.videoPath,userVideos.viewCount, userVideos.allowComment, userVideos.allowDownloads, userVideos.allowDuetReact,userVideos.viewVideo,userVideos.likeCount,userVideos.commentCount,userVideos.downloadPath FROM `userVideos` left join userFollow on userFollow.followingUserId = userVideos.userId left join users on users.id = userVideos.userId  where userFollow.userId = $userId  and userFollow.status = '1' and userVideos.userId NOT IN (select blockUserId from blockUser where userId = $userId  ) ")->result_array();
+		}
+		else
+		{
+			$getVideoDetails = $this->db->select('users.username,users.name,users.followerCount as followers,users.image,userVideos.id,userVideos.userId,userVideos.created,userVideos.hashtag, userVideos.description, userVideos.videoPath,userVideos.viewCount, userVideos.allowComment, userVideos.allowDuetReact,userVideos.allowDownloads,userVideos.viewVideo,userVideos.thumbnail,userVideos.likeCount,userVideos.commentCount,userVideos.downloadPath')
+			->from('userVideos')
+			->join('users','users.id=userVideos.userId')
+			//->where(['userVideos.userId' => $userId])
+			->order_by('created','DESC')
+			->get()->result_array();
+		}
+		if(!empty($getVideoDetails))
+		{
+			$message['success'] = '1';
+			$message['message'] = 'List Found Successfully';
+			foreach($getVideoDetails as $lists)
+			{
+
+				if(!empty($lists['name']))
+				{
+					$lists['username'] = $lists['name'];
+				}
+				else
+				{
+					$lists['username'] = $lists['username'];
+				}
+				if(!empty($lists['downloadPath']))
+				{
+					$lists['downloadPath'] = $lists['downloadPath'];
+				}
+				else
+				{
+					$lists['downloadPath'] =  '';
+				}
+				if(empty($lists['image']))
+				{
+					$lists['image'] = base_url().'uploads/no_image_available.png';
+				}
+				if(!empty($lists['hashtag']))
+				{
+					$lists['hashtagTitle'] = $this->hashTagName($lists['hashtag']);
+					$finalTagIds = explode(',',$lists['hashtag']);
+					foreach($finalTagIds as $finalTagId)
+					{
+						$hashArray = $this->db->get_where('hashtag',array('id' => $finalTagId))->row_array();
+						if(!empty($hashArray))
+						{
+							$lists['hastagLists'][] = $hashArray;
+						}
+					}
+				}
+				else
+				{
+					$lists['hashtagTitle'] = '';
+					$lists['hastagLists'] = [];
+				}
+				
+				$likeStatus = $this->db->get_where('videoLikeOrUnlike', array('videoId' => $lists['id'],'userId'=> $this->input->post('userId'),'status'=> '1'))->row_array();
+  				if(!empty($likeStatus))
+				{
+  					$lists['likeStatus'] = true;
+  				}
+  				else
+				{
+  					$lists['likeStatus'] = false;
+  				}
+				
+				$checkFollow = $this->db->get_where('userFollow', array('userId' => $this->input->post('userId'),'followingUserId' =>$lists['userId'],'status' => '1'))->row_array();
+				if(!empty($checkFollow))
+				{
+					$lists['followStatus'] = '1';
+				}
+				else
+				{
+					$lists['followStatus'] = '0';
+				}
+
+  				$message['details'][] = $lists;
+
+			}
+		}
+		echo json_encode($message);
+		
+	}
+	/////////////////////   Working here      /////////////////////////
+
+	// public function getFollowingVideo()
+	// {
+    // 	if($this->input->post('userId')==null)
+	// 	{
+	// 		echo json_encode([
+	// 			"success" => "0",
+	// 			"message" => "userId cannot be null!"
+	// 			]);
+	// 		exit;
+	// 	}
+	// 	$userId = $this->input->post('userId');
+	// 	$countNotification = $this->db->get_where('userNotification',array('userId' => $this->input->post('userId'),'status' => 0))->num_rows();
+
+	// 	if(!empty($countNotification)){
+	// 		$message['notificationCount'] = (string)$countNotification;
+	// 	}
+	// 	else
+	// 	{
+	// 		$message['notificationCount'] = '0';
+	// 	}
+		
+	// 		$getVideoDetails = $this->db->select('users.username,users.name,users.image,userVideos.id,userVideos.userId,userVideos.created,userVideos.hashtag, userVideos.description, userVideos.videoPath,userVideos.viewCount, userVideos.allowComment, userVideos.allowDuetReact,userVideos.allowDownloads,userVideos.viewVideo,userVideos.likeCount,userVideos.commentCount,userVideos.downloadPath')
+	// 		//$getVideoDetails = $this->db->select('userFollow.*,userVideos.*')
+	// 		->from('userFollow')
+	// 		->join('userVideos','userVideos.userId=userFollow.followingUserId')
+	// 		->join('users','users.id=userVideos.userId')
+	// 		->where(['userFollow.userId'=> $userId ,'userFollow.status' => '1'])
+	// 		->order_by('created','DESC')
+	// 		->get()
+	// 		->result_array();
+
+	// 	if(!empty($getVideoDetails))
+	// 	{ 
+	// 		$message['success'] = '1';
+	// 		$message['message'] = 'List Found Successfully';
+	// 		$message['Follower Id'] = $userId;
+	// 		foreach($getVideoDetails as $lists)
+	// 		{
+	// 			// $followingid=$lists['userId'];
+			
+	// 			if(!empty($lists['name']))
+	// 			{
+	// 				$lists['username'] = $lists['name'];
+	// 			}
+	// 			else
+	// 			{
+	// 				$lists['username'] = $lists['username'];
+	// 			}
+
+	// 			if(!empty($lists['downloadPath']))
+	// 			{
+	// 				$lists['downloadPath'] = $lists['downloadPath'];
+	// 			}
+	// 			else
+	// 			{
+	// 				$lists['downloadPath'] =  '';
+	// 			}
+	// 			if(empty($lists['image']))
+	// 			{
+	// 				$lists['image'] = base_url().'uploads/no_image_available.png';
+	// 			}
+	// 			if(!empty($lists['hashtag']))
+	// 			{
+	// 				$lists['hashtagTitle'] = $this->hashTagName($lists['hashtag']);
+	// 				$finalTagIds = explode(',',$lists['hashtag']);
+	// 				foreach($finalTagIds as $finalTagId)
+	// 				{
+	// 					$hashArray = $this->db->get_where('hashtag',array('id' => $finalTagId))->row_array();
+	// 					if(!empty($hashArray))
+	// 					{
+	// 						$lists['hastagLists'][] = $hashArray;
+	// 					}
+	// 				}
+	// 			}
+	// 			else
+	// 			{
+	// 				$lists['hashtagTitle'] = '';
+	// 				$lists['hastagLists'] = [];
+	// 			}
+				
+	// 			$likeStatus = $this->db->get_where('videoLikeOrUnlike', array('videoId' => $lists['id'],'userId'=> $lists['userId'],'status'=> '1'))->row_array();
+  	// 			if(!empty($likeStatus))
+	// 			{
+  	// 				$lists['likeStatus'] = true;
+  	// 			}
+  	// 			else
+	// 			{
+  	// 				$lists['likeStatus'] = false;
+  	// 			}
+				
+	// 			$checkFollow = $this->db->get_where('userFollow', array('userId' => $this->input->post('userId'),'followingUserId' =>$lists['userId'],'status' => '1'))->row_array();
+	// 			if(!empty($checkFollow))
+	// 			{
+	// 				$lists['followStatus'] = '1';
+	// 			}
+	// 			else
+	// 			{
+	// 				$lists['followStatus'] = '0';
+	// 			}
+
+  	// 			$message['details'][] = $lists;
+	// 		}
+	// 	}
+	// 	else
+	// 	{
+	// 		$message['success'] = '0';
+	// 		$message['message'] = 'User with UserId = '. $userId.' does not follow any other user.';
+	// 		$message['FollowerId'] = $userId;
+	// 		$message['details'][]='';
+	// 	}
+	// 	echo json_encode($message);
+	// }
+
+	/////////////////// working here     //////////////////////////////
+	
+	public function getVideos()
+	{
     	$startLimit = $this->input->post('startLimit');
         $endLimit = 10;
 		$userId = $this->input->post('userId');
@@ -4084,13 +4982,15 @@ public function commentsOnUserUploadVideo(){
 
      	$list =  $this->db->query("SELECT users.username,users.name,users.followerCount as followers,users.image, userVideos.id, userVideos.userId, userVideos.hashtag, userVideos.description, userVideos.videoPath,userVideos.viewCount, userVideos.allowComment, userVideos.allowDuetReact,userVideos.allowDownloads,userVideos.viewVideo,userVideos.likeCount,userVideos.commentCount,userVideos.downloadPath FROM `userVideos`  left join users on users.id = userVideos.userId where userVideos.viewVideo = 0 and userVideos.status = '1' and userVideos.userId NOT IN (select blockUserId from blockUser where userId = '$userId' ) and userVideos.id NOT IN (select videoId from  viewVideo where userId = '$userId' )")->result_array();
 
-    }
+    	}
 
-	 if(!empty($list)){
-      $count = count($list);
-      if($count < 9){
-        $this->db->delete('viewVideo',array('userId' => $this->input->post('userId')));
-      }
+	 if(!empty($list))
+	 {
+		$count = count($list);
+		if($count < 9)
+		{
+			$this->db->delete('viewVideo',array('userId' => $this->input->post('userId')));
+		}
 
 			$message['success'] = '1';
 			$message['message'] = 'List Found Successfully';
@@ -4098,8 +4998,6 @@ public function commentsOnUserUploadVideo(){
 
         $viewVideoInsert['userId'] = $this->input->post('userId');
         $viewVideoInsert['videoId'] = $lists['id'];
-
-
 
 
         $this->db->insert('viewVideo',$viewVideoInsert);
@@ -4157,7 +5055,7 @@ public function commentsOnUserUploadVideo(){
 			}
 		}
 		else{
-      $this->db->delete('viewVideo',array('userId' => $this->input->post('userId')));
+      	$this->db->delete('viewVideo',array('userId' => $this->input->post('userId')));
       if($this->input->post('videoType') == 'following'){
         $list =  $this->db->query("SELECT users.username,users.name,users.followerCount as followers,users.image,userVideos.id, userVideos.userId,userVideos.hashtag, userVideos.description, userVideos.videoPath,userVideos.viewCount, userVideos.allowComment, userVideos.allowDownloads, userVideos.allowDuetReact,userVideos.viewVideo,userVideos.likeCount,userVideos.commentCount,userVideos.downloadPath FROM `userVideos` left join userFollow on userFollow.followingUserId = userVideos.userId left join users on users.id = userVideos.userId  where userFollow.userId = $userId  and userFollow.status = '1' and userVideos.userId NOT IN (select blockUserId from blockUser where userId = $userId  ) ")->result_array();
       }
@@ -4236,9 +5134,12 @@ public function commentsOnUserUploadVideo(){
 		}
 		echo json_encode($message);
 	}
+	
+	///////////////
 
 	public function getUserUploadVedios(){
 
+		$this->db->order_by('created','DESC');
 	    $getDetails = $this->db->get_where("userVideos",['userId' => $this->input->post("userId")])->result_array();
 
 	    if(!!$getDetails){
@@ -4246,7 +5147,7 @@ public function commentsOnUserUploadVideo(){
 	        echo json_encode([
 
 	        "message" => 'details found',
-	        "success" => '1',
+	        "success" => 1,
 	        "details" => $getDetails,
 	        ]);
 
@@ -4255,7 +5156,7 @@ public function commentsOnUserUploadVideo(){
 	    else{
 	       echo json_encode([
 	        "message" => 'details not found!',
-	        "success" => '0',
+	        "success" => 0,
 	        ]);
 	        exit;
 	    }
@@ -7467,17 +8368,92 @@ public function commentsOnUserUploadVideo(){
  }
 
 
- public function viewVideo(){
-	 $data['userId'] = $this->input->post('userId');
-	 $data['videoId'] = $this->input->post('videoId');
-	 $this->db->insert('viewVideo',$data);
-	 $getCount = $this->db->get_where('userVideos',array('id' => $this->input->post('videoId')))->row_array();
-	 $data1['viewCount'] = $getCount['viewCount'] +  1;
-	 $update = $this->Common_Model->update('userVideos',$data1,'id',$this->input->post('videoId'));
-	 $message['success'] = '1';
-	 $message['message'] = 'Count update successfully';
-	 echo json_encode($message);
- }
+// public function viewVideo(){
+// 	 $data['userId'] = $this->input->post('userId');
+// 	 $data['videoId'] = $this->input->post('videoId');
+
+// 	 $user=$this->db->get_where('viewVideo',['userId' => $this->input->post('userId') , 'videoId' => $this->input->post('videoId')])->row_array();
+
+// 	if(!$user)
+// 	{
+// 		$this->db->insert('viewVideo',$data);
+// 		$getCount = $this->db->get_where('userVideos',array('id' => $this->input->post('videoId')))->row_array();
+// 		$data1['viewCount'] = $getCount['viewCount'] +  1;
+// 		$update = $this->Common_Model->update('userVideos',$data1,'id',$this->input->post('videoId'));
+// 		$message['success'] = '1';
+// 		$message['message'] = 'Count update successfully';
+// 		echo json_encode($message);
+// 	}
+//  }
+
+///////////////////////
+
+public function viewVideo()
+{
+	if(!($this->input->post('userId') && $this->input->post('videoId')))
+	{
+		echo json_encode([
+			'success' => false,
+			'message' => 'Enter userId & videoId'
+		]);
+		exit;
+	}	
+		$checkuser=$this->db->select('id')
+		->from('users')
+		->where(['id'=>$this->input->post('userId')])
+		->get()->row_array();
+
+		if(!$checkuser)
+		{
+			echo json_encode([
+				'success' => false,
+				'message' => 'Enter valid userId'
+			]);
+			exit;
+		}
+
+		$checkvideo=$this->db->select('id')
+			->from('userVideos')
+			->where(['id'=>$this->input->post('videoId')])
+			->get()->row_array();
+
+			if(!$checkvideo)
+			{
+				echo json_encode([
+					'success' => false,
+					'message' => 'Enter valid videoId'
+				]);
+				exit;
+			}
+
+		$data['userId'] = $this->input->post('userId');
+		$data['videoId'] = $this->input->post('videoId');
+
+		$checkview=$this->db->get_where('viewVideo',['userId' => $this->input->post('userId') , 'videoId' => $this->input->post('videoId')])->result_array();
+
+  if(!$checkview)
+   {
+	   $this->db->insert('viewVideo',$data);
+	   $getCount = $this->db->get_where('userVideos',array('id' => $this->input->post('videoId')))->row_array();
+	   $data1['viewCount'] = $getCount['viewCount'] +  1;
+	   $update = $this->Common_Model->update('userVideos',$data1,'id',$this->input->post('videoId'));
+	   $message['success'] = true;
+	   $message['message'] = 'Count update successfully';
+	}
+   else
+   {
+	$message['success'] = true;
+	$message['message'] = 'Video already viewed';
+
+		foreach($checkview as $row)
+		{
+			$message['details'] = $row;
+		}
+	}
+	echo json_encode($message);
+}
+
+///////////////////////
 
  public function problemReport(){
 	 $list = $this->db->get_where('problemReport')->result_array();
@@ -9403,134 +10379,134 @@ public function commentsOnUserUploadVideo(){
       return $array;
   }
 
-  public function shareVideo(){
-    $startLimit = $this->input->post('startLimit');
-    $endLimit = 5;
-    $userId = $this->input->post('userId');
-    if(!empty($this->input->post('videoId'))){
-      $videoId = $this->input->post('videoId');
-      $videoListApi =  $this->db->query("SELECT sounds.title as soundTitle,sounds.id as soundId,users.username,users.name,users.followerCount as followers,users.image,userVideos.id, userVideos.userId,userVideos.hashtag, userVideos.description, userVideos.videoPath,userVideos.viewCount, userVideos.allowComment, userVideos.allowDownloads, userVideos.allowDuetReact,userVideos.viewVideo,userVideos.likeCount,userVideos.commentCount,userVideos.downloadPath FROM `userVideos` left join userFollow on userFollow.followingUserId = userVideos.userId left join users on users.id = userVideos.userId left join sounds on sounds.id = userVideos.soundId where userVideos.id = $videoId group by userVideos.id")->row_array();
-      if(!empty($videoListApi['name'])){
-        $videoListApi['username'] = $videoListApi['name'];
-      }
-      else{
-        $videoListApi['username'] = $videoListApi['username'];
-      }
-      if(!empty($videoListApi['downloadPath'])){
-        $videoListApi['downloadPath'] = $videoListApi['downloadPath'];
-      }
-      else{
-        $videoListApi['downloadPath'] =  '';
-      }
+//   public function shareVideo(){
+//     $startLimit = $this->input->post('startLimit');
+//     $endLimit = 5;
+//     $userId = $this->input->post('userId');
+//     if(!empty($this->input->post('videoId'))){
+//       $videoId = $this->input->post('videoId');
+//       $videoListApi =  $this->db->query("SELECT sounds.title as soundTitle,sounds.id as soundId,users.username,users.name,users.followerCount as followers,users.image,userVideos.id, userVideos.userId,userVideos.hashtag, userVideos.description, userVideos.videoPath,userVideos.viewCount, userVideos.allowComment, userVideos.allowDownloads, userVideos.allowDuetReact,userVideos.viewVideo,userVideos.likeCount,userVideos.commentCount,userVideos.downloadPath FROM `userVideos` left join userFollow on userFollow.followingUserId = userVideos.userId left join users on users.id = userVideos.userId left join sounds on sounds.id = userVideos.soundId where userVideos.id = $videoId group by userVideos.id")->row_array();
+//       if(!empty($videoListApi['name'])){
+//         $videoListApi['username'] = $videoListApi['name'];
+//       }
+//       else{
+//         $videoListApi['username'] = $videoListApi['username'];
+//       }
+//       if(!empty($videoListApi['downloadPath'])){
+//         $videoListApi['downloadPath'] = $videoListApi['downloadPath'];
+//       }
+//       else{
+//         $videoListApi['downloadPath'] =  '';
+//       }
 
-      if(empty($videoListApi['image'])){
-        $videoListApi['image'] = base_url().'uploads/no_image_available.png';
-      }
-      if(!empty($videoListApi['hashtag'])){
-        $videoListApi['hashtagTitle'] = $this->hashTagName($videoListApi['hashtag']);
-        $finalTagIdss = explode(',',$videoListApi['hashtag']);
-        foreach($finalTagIdss as $finalTagIds){
-          $hashArrays = $this->db->get_where('hashtag',array('id' => $finalTagIds))->row_array();
-          if(!empty($hashArrays)){
-            $videoListApi['hastagLists'][] = $hashArrays;
-          }
-        }
-      }
-      else{
-        $videoListApi['hashtagTitle'] = '';
-        $videoListApi['hastagLists'] = [];
-      }
-      $likeStatus1 = $this->db->get_where('videoLikeOrUnlike', array('videoId' => $videoListApi['id'],'userId'=> $this->input->post('userId'),'status'=> '1'))->row_array();
-      if(!empty($likeStatus1)){
-        $videoListApi['likeStatus'] = true;
-      }
-      else{
-        $videoListApi['likeStatus'] = false;
-      }
-
-
-      $checkFollow1 = $this->db->get_where('userFollow', array('userId' => $this->input->post('userId'),'followingUserId' =>$videoListApi['userId'],'status' => '1'))->row_array();
-      if(!empty($checkFollow1)){
-        $videoListApi['followStatus'] = '1';
-      }
-      else{
-        $videoListApi['followStatus'] = '0';
-      }
-
-    }
-    //else{
-      // $list =  $this->db->query("SELECT users.username,users.followerCount as followers,users.image,sounds.title as soundTitle,sounds.id as soundId, userVideos.id, userVideos.userId, userVideos.hashtag, userVideos.description, userVideos.videoPath,userVideos.viewCount, userVideos.allowComment, userVideos.allowDuetReact,userVideos.allowDownloads,userVideos.viewVideo,userVideos.likeCount,userVideos.commentCount,userVideos.downloadPath FROM `userVideos` left join sounds on sounds.id = userVideos.soundId left join users on users.id = userVideos.userId where userVideos.viewVideo = 0 and userVideos.userId NOT IN (select blockUserId from blockUser where userId = '$userId' ) and userVideos.id NOT IN (select videoId from  viewVideo where userId = '$userId' ) ORDER BY userVideos.viewCount desc,userVideos.likeCount desc,userVideos.commentCount LIMIT $startLimit , 5")->result_array();
-      $list =  $this->db->query("SELECT users.username,users.name,users.followerCount as followers,users.image,sounds.title as soundTitle,sounds.id as soundId, userVideos.id, userVideos.userId, userVideos.hashtag, userVideos.description, userVideos.videoPath,userVideos.viewCount, userVideos.allowComment, userVideos.allowDuetReact,userVideos.allowDownloads,userVideos.viewVideo,userVideos.likeCount,userVideos.commentCount,userVideos.downloadPath FROM `userVideos` left join sounds on sounds.id = userVideos.soundId left join users on users.id = userVideos.userId where userVideos.viewVideo = 0 and userVideos.userId NOT IN (select blockUserId from blockUser where userId = '$userId' ) ORDER BY RAND() LIMIT $startLimit , 5")->result_array();
-    //}
-    if(!empty($list)){
-      foreach($list as $lists){
-        if(!empty($lists['name'])){
-          $lists['username'] = $lists['name'];
-        }
-        else{
-          $lists['username'] = $lists['username'];
-        }
-        if(!empty($lists['downloadPath'])){
-          $lists['downloadPath'] = $lists['downloadPath'];
-        }
-        else{
-          $lists['downloadPath'] =  '';
-        }
-
-        if(empty($lists['image'])){
-          $lists['image'] = base_url().'uploads/no_image_available.png';
-        }
-        if(!empty($lists['hashtag'])){
-          $lists['hashtagTitle'] = $this->hashTagName($lists['hashtag']);
-          $finalTagIds = explode(',',$lists['hashtag']);
-          foreach($finalTagIds as $finalTagId){
-            $hashArray = $this->db->get_where('hashtag',array('id' => $finalTagId))->row_array();
-            if(!empty($hashArray)){
-              $lists['hastagLists'][] = $hashArray;
-            }
-          }
-        }
-        else{
-          $lists['hashtagTitle'] = '';
-          $lists['hastagLists'] = [];
-        }
-        $likeStatus = $this->db->get_where('videoLikeOrUnlike', array('videoId' => $lists['id'],'userId'=> $this->input->post('userId'),'status'=> '1'))->row_array();
-        if(!empty($likeStatus)){
-          $lists['likeStatus'] = true;
-        }
-        else{
-          $lists['likeStatus'] = false;
-        }
+//       if(empty($videoListApi['image'])){
+//         $videoListApi['image'] = base_url().'uploads/no_image_available.png';
+//       }
+//       if(!empty($videoListApi['hashtag'])){
+//         $videoListApi['hashtagTitle'] = $this->hashTagName($videoListApi['hashtag']);
+//         $finalTagIdss = explode(',',$videoListApi['hashtag']);
+//         foreach($finalTagIdss as $finalTagIds){
+//           $hashArrays = $this->db->get_where('hashtag',array('id' => $finalTagIds))->row_array();
+//           if(!empty($hashArrays)){
+//             $videoListApi['hastagLists'][] = $hashArrays;
+//           }
+//         }
+//       }
+//       else{
+//         $videoListApi['hashtagTitle'] = '';
+//         $videoListApi['hastagLists'] = [];
+//       }
+//       $likeStatus1 = $this->db->get_where('videoLikeOrUnlike', array('videoId' => $videoListApi['id'],'userId'=> $this->input->post('userId'),'status'=> '1'))->row_array();
+//       if(!empty($likeStatus1)){
+//         $videoListApi['likeStatus'] = true;
+//       }
+//       else{
+//         $videoListApi['likeStatus'] = false;
+//       }
 
 
-        $checkFollow = $this->db->get_where('userFollow', array('userId' => $this->input->post('userId'),'followingUserId' =>$lists['userId'],'status' => '1'))->row_array();
-        if(!empty($checkFollow)){
-          $lists['followStatus'] = '1';
-        }
-        else{
-          $lists['followStatus'] = '0';
-        }
+//       $checkFollow1 = $this->db->get_where('userFollow', array('userId' => $this->input->post('userId'),'followingUserId' =>$videoListApi['userId'],'status' => '1'))->row_array();
+//       if(!empty($checkFollow1)){
+//         $videoListApi['followStatus'] = '1';
+//       }
+//       else{
+//         $videoListApi['followStatus'] = '0';
+//       }
 
-        $otherVideo[] = $lists;
-      }
+//     }
+//     //else{
+//       // $list =  $this->db->query("SELECT users.username,users.followerCount as followers,users.image,sounds.title as soundTitle,sounds.id as soundId, userVideos.id, userVideos.userId, userVideos.hashtag, userVideos.description, userVideos.videoPath,userVideos.viewCount, userVideos.allowComment, userVideos.allowDuetReact,userVideos.allowDownloads,userVideos.viewVideo,userVideos.likeCount,userVideos.commentCount,userVideos.downloadPath FROM `userVideos` left join sounds on sounds.id = userVideos.soundId left join users on users.id = userVideos.userId where userVideos.viewVideo = 0 and userVideos.userId NOT IN (select blockUserId from blockUser where userId = '$userId' ) and userVideos.id NOT IN (select videoId from  viewVideo where userId = '$userId' ) ORDER BY userVideos.viewCount desc,userVideos.likeCount desc,userVideos.commentCount LIMIT $startLimit , 5")->result_array();
+//       $list =  $this->db->query("SELECT users.username,users.name,users.followerCount as followers,users.image,sounds.title as soundTitle,sounds.id as soundId, userVideos.id, userVideos.userId, userVideos.hashtag, userVideos.description, userVideos.videoPath,userVideos.viewCount, userVideos.allowComment, userVideos.allowDuetReact,userVideos.allowDownloads,userVideos.viewVideo,userVideos.likeCount,userVideos.commentCount,userVideos.downloadPath FROM `userVideos` left join sounds on sounds.id = userVideos.soundId left join users on users.id = userVideos.userId where userVideos.viewVideo = 0 and userVideos.userId NOT IN (select blockUserId from blockUser where userId = '$userId' ) ORDER BY RAND() LIMIT $startLimit , 5")->result_array();
+//     //}
+//     if(!empty($list)){
+//       foreach($list as $lists){
+//         if(!empty($lists['name'])){
+//           $lists['username'] = $lists['name'];
+//         }
+//         else{
+//           $lists['username'] = $lists['username'];
+//         }
+//         if(!empty($lists['downloadPath'])){
+//           $lists['downloadPath'] = $lists['downloadPath'];
+//         }
+//         else{
+//           $lists['downloadPath'] =  '';
+//         }
 
-      if(!empty($videoListApi)){
-          $finalUserINfo[] = $videoListApi;
-         $finalListSound = array_merge($finalUserINfo,$otherVideo);
-       }
-       else{
-         $finalListSound = $otherVideo;
-       }
-     $message['success'] = '1';
-     $message['message'] = 'List found SuccessFully';
-      $message['details'] = $finalListSound;
-    }
-    else{
-      $message['success'] = '0';
-      $message['message'] = 'NO List Found';
-    }
-    echo json_encode($message);
-  }
+//         if(empty($lists['image'])){
+//           $lists['image'] = base_url().'uploads/no_image_available.png';
+//         }
+//         if(!empty($lists['hashtag'])){
+//           $lists['hashtagTitle'] = $this->hashTagName($lists['hashtag']);
+//           $finalTagIds = explode(',',$lists['hashtag']);
+//           foreach($finalTagIds as $finalTagId){
+//             $hashArray = $this->db->get_where('hashtag',array('id' => $finalTagId))->row_array();
+//             if(!empty($hashArray)){
+//               $lists['hastagLists'][] = $hashArray;
+//             }
+//           }
+//         }
+//         else{
+//           $lists['hashtagTitle'] = '';
+//           $lists['hastagLists'] = [];
+//         }
+//         $likeStatus = $this->db->get_where('videoLikeOrUnlike', array('videoId' => $lists['id'],'userId'=> $this->input->post('userId'),'status'=> '1'))->row_array();
+//         if(!empty($likeStatus)){
+//           $lists['likeStatus'] = true;
+//         }
+//         else{
+//           $lists['likeStatus'] = false;
+//         }
+
+
+//         $checkFollow = $this->db->get_where('userFollow', array('userId' => $this->input->post('userId'),'followingUserId' =>$lists['userId'],'status' => '1'))->row_array();
+//         if(!empty($checkFollow)){
+//           $lists['followStatus'] = '1';
+//         }
+//         else{
+//           $lists['followStatus'] = '0';
+//         }
+
+//         $otherVideo[] = $lists;
+//       }
+
+//       if(!empty($videoListApi)){
+//           $finalUserINfo[] = $videoListApi;
+//          $finalListSound = array_merge($finalUserINfo,$otherVideo);
+//        }
+//        else{
+//          $finalListSound = $otherVideo;
+//        }
+//      $message['success'] = '1';
+//      $message['message'] = 'List found SuccessFully';
+//       $message['details'] = $finalListSound;
+//     }
+//     else{
+//       $message['success'] = '0';
+//       $message['message'] = 'NO List Found';
+//     }
+//     echo json_encode($message);
+//   }
 
   public function beansExchange(){
     $list = $this->db->get_where('beansExchange')->result_array();
@@ -11792,28 +12768,108 @@ public function commentsOnUserUploadVideo(){
     }
   }
 
-  public function getFollowingVideos(){
+  public function getFollowingVideos()
+  {
+	$userId=$this->input->post('userId');
+	$getVideos = $this->db->select("users.username,users.name,users.followerCount as followers,
+	users.image,userVideos.id as videoId,userVideos.userId,userVideos.created,userVideos.hashtag,userVideos.description,
+	userVideos.videoPath,userVideos.viewCount,userVideos.allowComment, userVideos.allowDuetReact,userVideos.allowDownloads,
+	userVideos.viewVideo,userVideos.thumbnail,userVideos.likeCount,userVideos.commentCount,userVideos.downloadPath")
+        ->from("userFollow")
+        ->join("userVideos","userVideos.userId = userFollow.followingUserId")
+        ->join("users","users.id = userVideos.userId")
+		// ->where("userFollow.userId",$this->input->post('userId'))
+		->where(['userFollow.userId'=> $userId ,'userFollow.status' => '1'])
+        ->order_by('created','DESC')
+		->get()
+		->result_array();
 
+	if(!empty($getVideos))
+	{ 
+		$message['success'] = '1';
+		$message['message'] = 'List Found Successfully';
+		$message['FollowerId'] = $userId;
+		foreach($getVideos as $lists)
+		{
+			// $followingid=$lists['userId'];
+		
+			if(!empty($lists['name']))
+			{
+				$lists['username'] = $lists['name'];
+			}
+			else
+			{
+				$lists['username'] = $lists['username'];
+			}
 
-        $getVideos = $this->db->select("userFollow.*,userVideos.*")
-                                ->from("userFollow")
-                                ->join("userVideos","userVideos.userId = userFollow.followingUserId")
-                                ->where("userFollow.userId",$this->input->post("userId"))
-                                ->get()
-                                ->result_array();
+			if(!empty($lists['downloadPath']))
+			{
+				$lists['downloadPath'] = $lists['downloadPath'];
+			}
+			else
+			{
+				$lists['downloadPath'] =  '';
+			}
+			if(empty($lists['image']))
+			{
+				$lists['image'] = base_url().'uploads/no_image_available.png';
+			}
+			if(!empty($lists['hashtag']))
+			{
+				$lists['hashtagTitle'] = $this->hashTagName($lists['hashtag']);
+				$finalTagIds = explode(',',$lists['hashtag']);
+				foreach($finalTagIds as $finalTagId)
+				{
+					$hashArray = $this->db->get_where('hashtag',array('id' => $finalTagId))->row_array();
+					if(!empty($hashArray))
+					{
+						$lists['hastagLists'][] = $hashArray;
+					}
+				}
+			}
+			else
+			{
+				$lists['hashtagTitle'] = '';
+				$lists['hastagLists'] = [];
+			}
+			
+			//$likeStatus = $this->db->get_where('videoLikeOrUnlike', array('videoId' => $lists['id'],'userId'=> $userId,'status'=> '1'))->row_array();
+			$likeStatus=$this->db->select('*')
+			->from('videoLikeOrUnlike')
+			->where(['videoId'=> $lists['videoId'] ,'userId' => $userId,'status' => '1'])
+			->get()
+			->result_array();
 
-        if(!!$getVideos){
+				if(!empty($likeStatus))
+			{
+				  $lists['likeStatus'] = true;
+			  }
+			  else
+			{
+				  $lists['likeStatus'] = false;
+			  }
+			
+			$checkFollow = $this->db->get_where('userFollow', array('userId' => $this->input->post('userId'),'followingUserId' =>$lists['userId'],'status' => '1'))->row_array();
+			if(!empty($checkFollow))
+			{
+				$lists['followStatus'] = '1';
+			}
+			else
+			{
+				$lists['followStatus'] = '0';
+			}
 
-          $message['success'] = '1';
-          $message['message'] = 'details found';
-          $message['details'] = $getVideos;
-      }
-      else{
-          $message['success'] = '0';
-          $message['message'] = 'details not found!';
-      }
-
-      echo json_encode($message);
+			  $message['details'][] = $lists;
+		}
+	}
+	else
+	{
+		$message['success'] = '0';
+		$message['message'] = 'User with UserId = '. $userId.' does not follow any other user.';
+		$message['FollowerId'] = $userId;
+		$message['details'][]='';
+	}
+	echo json_encode($message);
   }
 
   public function getArchivedLiveUser(){
@@ -15624,10 +16680,18 @@ public function commentsOnUserUploadVideo(){
 													->update('userVideos', $likeCountData);
 						if($likeCountUpdate)
 						{
+							//$likeCount=$this->db->select('likeCount')->from('userVideos')->where(['id'=>$this->input->post('videoId')])->get()->result_array();
+							//$count['likeCount']=$likeCount;
+							$likeCount =  $this->db->get_where('userVideos', array('id' => $this->input->post('videoId')))->row_array(); 
+							$count=$likeCount['likeCount'];
+
 							echo json_encode([
 								'status' => 1,
 								'message' => 'Video Liked',
-								'details' => $checkLike2
+								'details' => $checkLike2,
+								'likeStatus' => true,
+								//'likeStatusChange' => "1",
+								'likeStatusChange' => "$count"
 							]);exit;
 						}
 
@@ -15645,21 +16709,45 @@ public function commentsOnUserUploadVideo(){
 
 					if($unlikeUpdate)
 					{
+
 						$checkLike2=$this->db->get_where('videoLikeOrUnlike', ['videoId'=>$videoId, 'userId'=>$otherUserId])->row_array();
 
-						$unlikeCountData=array(
-							'likeCount' => $checkVideo['likeCount']-1
-						);
+						// if($checkVideo['likeCount']==0)
+						// {
+						// 	$checkVideo['likeCount']=1;
+						// }
+						// $likeCountCheck =  $this->db->get_where('userVideos', array('id' => $this->input->post('videoId')))->row_array(); 
+						// $countCheck=$likeCountCheck['likeCount'];
+						
+						if($checkVideo['likeCount'] == 0)
+						{
+							$unlikeCountData=array(
+								'likeCount' => $checkVideo['likeCount']
+							);	
+						}
+						else
+						{
+							$unlikeCountData=array(
+								'likeCount' => $checkVideo['likeCount']-1
+							);
+						}
 
 						$unlikeCountUpdate=$this->db->where(['id'=>$videoId])
 													->update('userVideos', $unlikeCountData);
 
 						if($unlikeCountUpdate)
 						{
+							$likeCount =  $this->db->get_where('userVideos', array('id' => $this->input->post('videoId')))->row_array(); 
+							$count=$likeCount['likeCount'];
+
 							echo json_encode([
 								'status' => 0,
 								'message' => 'Video Unliked',
-								'details' => $checkLike2
+								'details' => $checkLike2,
+								// 'unlikeCount' => 'test', ///changes added here
+								'likeStatus' => false,
+								//'likeStatusChange' => "0",
+								'likeStatusChange' => $count
 							]);exit;
 						}
 					}
@@ -15689,10 +16777,16 @@ public function commentsOnUserUploadVideo(){
 	
 					if(!!$getLikeDetails)
 					{
-						echo json_encode([
+						$likeCount =  $this->db->get_where('userVideos', array('id' => $this->input->post('videoId')))->row_array(); 
+						$count=$likeCount['likeCount'];
+							echo json_encode([
 							'status' => 1,
 							'message' => 'Video Liked',
-							'details' => $getLikeDetails
+							'details' => $getLikeDetails,
+							// 'likeCount' => 'test', ///changes added here
+							'likeStatus' => true,
+							//'likeStatusChange' => "1",
+							'likeStatusChange' => "$count"
 						]);exit;
 					}
 					else
@@ -15706,7 +16800,7 @@ public function commentsOnUserUploadVideo(){
 			}
 		}
 		else
-		{
+		{							
 			echo json_encode([
 				'status' => 0,
 				'message' => 'Video not Found'
@@ -15714,6 +16808,8 @@ public function commentsOnUserUploadVideo(){
 		}
 
 	}
+	
+//////////////////////////////////////
 
 	public function newComment()
 	{
@@ -15897,6 +16993,1320 @@ public function commentsOnUserUploadVideo(){
 		}
 	  }
 
+	  // ============= frames Apis in VitoLive (framesPerLevel added by admin) =============
+
+	  public function getFrameByLevel()
+	{
+
+		if ($this->input->post()) {
+
+			$checkUser = $this->db->get_where('users', ['id' => $this->input->post('userId')])->row_array();
+
+			if (empty($checkUser)) {
+				echo json_encode([
+					'status' => 0,
+					'message' => 'invalid UserId'
+				]);
+				exit;
+			}
+
+			$get = $this->db->query("SELECT framesPerLevel.* FROM framesPerLevel order by price asc")->result_array();
+
+			if (empty($get)) {
+				echo json_encode([
+					'success' => 0,
+					'message' => 'Empty DB'
+				]);
+				exit;
+			}
+
+			$final = [];
+			//   foreach($get as $gets){
+
+			//     $getId = $gets['id'];
+
+			//     $gets['available'] = false;
+
+			//     $gets['image'] = base_url() . $gets['image'];
+
+			//     if($gets['level'] <= $checkUser['my_level']){
+			//       $gets['available'] = true;
+			//     }
+
+			//     $getStatus = $this->db->get_where("userFrames",['userId' => $this->input->post('userId'), 'frameId' => $getId])->result_array();
+
+			//     if(!!$getStatus){
+
+			//     $date = date('Y-m-d');
+
+			//     // echo $date;
+			//     // die;
+			//     if($getStatus['dateTo'] < $date){
+			//       $gets['purchasedType'] = "True";
+			//     }
+			//     else{
+
+			//       $gets['purchasedType'] = "False";
+			//     }
+			//   }
+			//     $final[] = $gets;
+
+			//   }
+
+			foreach ($get as $gets) {
+
+				$getId = $gets['id'];
+
+				$date = date('Y-m-d');
+
+				$gets['image'] = base_url() . $gets['image'];
+
+
+				$getStatus = $this->db->select("userFrames.*")
+					->from("userFrames")
+					->where("userFrames.userId", $this->input->post('userId'))
+					->where("userFrames.frameId", $getId)
+					->where("userFrames.dateTo >=", $date)
+					->get()
+					->row_array();
+
+				//   print_r($getStatus);
+
+				if ($gets['level'] <= $checkUser['my_level']) {
+					$gets['available'] = true;
+				} else {
+					$gets['available'] = false;
+				}
+
+
+
+				if (!!$getStatus) {
+					$gets['purchasedType'] = "True";
+				} else {
+					$gets['purchasedType'] = "False";
+				}
+				$final[] = $gets;
+			}
+			//   die;
+
+			echo json_encode([
+				'success' => 1,
+				'message' => 'list found',
+				'details' => $final
+			]);
+			exit;
+		} else {
+			echo json_encode([
+				'success' => 0,
+				'message' => 'enter valid data'
+			]);
+			exit;
+		}
+	}
+
+	public function purchaseFrames()
+	{
+
+		if ($this->input->post()) {
+
+			$checkUser = $this->db->get_where('users', ['id' => $this->input->post('userId')])->row_array();
+
+			if (empty($checkUser)) {
+				echo json_encode([
+					'success' => 0,
+					'message' => 'Invalid userId'
+				]);
+				exit;
+			}
+
+			$checkFrame = $this->db->get_where('framesPerLevel', ['id' => $this->input->post('frameId')])->row_array();
+
+			if (empty($checkFrame)) {
+				echo json_encode([
+					'success' => 0,
+					'message' => 'Invalid frameId'
+				]);
+				exit;
+			}
+
+			$checkFramePurchase = $this->db->get_where('userFrames', ['userId' => $this->input->post('userId'), 'frameId' => $this->input->post('frameId')])->row_array();
+
+			if (!empty($checkFramePurchase)) {
+				if ($checkFramePurchase['dateTo'] > date('Y-m-d')) {
+					echo json_encode([
+						'success' => 0,
+						'message' => 'frame already pruchased'
+					]);
+					exit;
+				}
+			}
+
+			$frameAmount = $checkFrame['price'];
+			$coinBalance = $checkUser['purchasedCoin'];
+
+
+			if ($coinBalance < $frameAmount) {
+				echo json_encode([
+					'success' => 0,
+					'message' => 'Insufficient Balance'
+				]);
+				exit;
+			}
+
+			$coinBalance -= $frameAmount;
+
+			$expDate = strtotime("+" . $checkFrame['validity'] . " day");
+			$dateTo = date('Y-m-d', $expDate);
+
+			$buyFrame['userId'] = $this->input->post('userId');
+			$buyFrame['frameId'] = $this->input->post('frameId');
+			$buyFrame['price'] = $frameAmount;
+			$buyFrame['dateFrom'] = date('Y-m-d');
+			$buyFrame['dateTo'] = $dateTo;
+
+			$insert = $this->db->insert('userFrames', $buyFrame);
+			$updateUserCoin = $this->db->set(['purchasedCoin' => $coinBalance])->where('id', $this->input->post('userId'))->update('users');
+
+			if ($insert && $updateUserCoin) {
+
+				$checkUserFrames = $this->db->select('*')
+					->from('userFrames')
+					->where('userId', $this->input->post('userId'))
+					->get()->result_array();
+
+				$final = [];
+				foreach ($checkUserFrames as $frames) {
+
+					if ($frames['dateTo'] >= date('Y-m-d')) {
+
+						$getFrame = $this->db->get_where('framesPerLevel', ['id' => $frames['frameId']])->row_array();
+						$frames['frameIMage'] = base_url() . $getFrame['image'];
+						$final[] = $frames;
+					}
+				}
+
+				echo json_encode([
+					'success' => 1,
+					'message' => 'Frame Purchased',
+					'details' => $final
+				]);
+				exit;
+			} else {
+				echo json_encode([
+					'success' => 0,
+					'message' => 'Tech Error'
+				]);
+				exit;
+			}
+		} else {
+			echo json_encode([
+				'success' => 0,
+				'message' => 'Enter valid data'
+			]);
+			exit;
+		}
+	}
+
+	public function getPurchaseFrame()
+	{
+
+
+		if ($this->input->post()) {
+
+			$checkUser = $this->db->get_where('users', ['id' => $this->input->post('userId')])->row_array();
+
+			if (empty($checkUser)) {
+				echo json_encode([
+					'status' => 0,
+					'message' => 'Invalid userId'
+				]);
+				exit;
+			}
+
+			$checkUserFrames = $this->db->select('*')
+				->from('userFrames')
+				->where('userId', $this->input->post('userId'))
+				->get()->result_array();
+
+			$final = [];
+			foreach ($checkUserFrames as $frames) {
+
+				if ($frames['dateTo'] >= date('Y-m-d')) {
+
+
+					$getFrame = $this->db->get_where('framesPerLevel', ['id' => $frames['frameId']])->row_array();
+					$frames['frameIMage'] = base_url() . $getFrame['image'];
+
+
+					$frames['isApplied'] = false;
+
+					if ($frames['frameId'] == $checkUser['myFrame']) {
+						$frames['isApplied'] = true;
+					}
+
+					$final[] = $frames;
+				}
+			}
+
+			if (empty($final)) {
+
+				echo json_encode([
+					'success' => 0,
+					'message' => 'No Frames Found'
+				]);
+				exit;
+			} else {
+
+				echo json_encode([
+					'success' => 1,
+					'message' => 'Frames Found',
+					'details' => $final
+				]);
+				exit;
+			}
+		} else {
+			echo json_encode([
+				'success' => 0,
+				'message' => 'Enter valid data'
+			]);
+			exit;
+		}
+	}
+
+	public function applyFrame()
+	{
+
+		if ($this->input->post('userId') == null || $this->input->post('frameId') == null) {
+			echo json_encode([
+				'success' => 0,
+				'message' => 'param cannot be null!'
+			]);
+			exit;
+		}
+
+		$checkApplyFrame = $this->db->get_where('applyFrameRecords', ['userId' => $this->input->post('userId')])->row_array();
+
+		if (!!$checkApplyFrame) {
+
+			$checkUser = $this->db->get_where('users', ['id' => $this->input->post('userId')])->row_array();
+
+			if (empty($checkUser)) {
+				echo json_encode([
+					'success' => 0,
+					'message' => 'Invalid userId'
+				]);
+				exit;
+			}
+
+			$checkFrame = $this->db->get_where('framesPerLevel', ['id' => $this->input->post('frameId')])->row_array();
+
+			if (empty($checkFrame)) {
+				echo json_encode([
+					'success' => 0,
+					'message' => 'Invalid frameId'
+				]);
+				exit;
+			}
+
+			//   $checkFramePurchase = $this->db->get_where('userFrames', ['userId' => $this->input->post('userId'), 'frameId' => $this->input->post('frameId')])->row_array();
+
+			$checkFramePurchase = $this->db->select("userFrames.*")
+				->from("userFrames")
+				->where("userFrames.userId", $this->input->post('userId'))
+				->where("userFrames.frameId", $this->input->post('frameId'))
+				->where("userFrames.dateTo >=", date('Y-m-d'))
+				->get()
+				->row_array();
+
+			if (empty($checkFramePurchase)) {
+
+				echo json_encode([
+					'success' => 0,
+					'message' => 'frame not pruchased'
+				]);
+				exit;
+			}
+
+			if (!!$checkFramePurchase) {
+				if ($checkFramePurchase['dateTo'] < date('Y-m-d')) {
+					echo json_encode([
+						'success' => 0,
+						'message' => 'frame Expired'
+					]);
+					exit;
+				}
+			}
+
+			$data['userId'] = $this->input->post('userId');
+			$data['frameId'] = $this->input->post('frameId');
+			$data['frameType'] = 'normalFrame';
+
+			$apply = $this->db->update("applyFrameRecords", $data, ['userId' => $this->input->post('userId')]);
+
+			if ($this->db->set('myFrame', $this->input->post('frameId'))->where('id', $this->input->post('userId'))->update('users')) {
+				echo json_encode([
+					'success' => 1,
+					'message' => 'frame applied',
+					// 'details' => $this->db->get_where('users', ['id' => $this->input->post('userId')])->row_array();
+				]);
+				exit;
+			}
+		} else {
+			$checkUser = $this->db->get_where('users', ['id' => $this->input->post('userId')])->row_array();
+
+			if (empty($checkUser)) {
+				echo json_encode([
+					'success' => 0,
+					'message' => 'Invalid userId'
+				]);
+				exit;
+			}
+
+			$checkFrame = $this->db->get_where('framesPerLevel', ['id' => $this->input->post('frameId')])->row_array();
+
+			if (empty($checkFrame)) {
+				echo json_encode([
+					'success' => 0,
+					'message' => 'Invalid frameId'
+				]);
+				exit;
+			}
+
+			//   $checkFramePurchase = $this->db->get_where('userFrames', ['userId' => $this->input->post('userId'), 'frameId' => $this->input->post('frameId')])->row_array();
+
+			$checkFramePurchase = $this->db->select("userFrames.*")
+				->from("userFrames")
+				->where("userFrames.userId", $this->input->post('userId'))
+				->where("userFrames.frameId", $this->input->post('frameId'))
+				->where("userFrames.dateTo >=", date('Y-m-d'))
+				->get()
+				->row_array();
+
+			if (empty($checkFramePurchase)) {
+
+				echo json_encode([
+					'success' => 0,
+					'message' => 'frame not pruchased'
+				]);
+				exit;
+			}
+
+			if (!!$checkFramePurchase) {
+				if ($checkFramePurchase['dateTo'] < date('Y-m-d')) {
+					echo json_encode([
+						'success' => 0,
+						'message' => 'frame Expired'
+					]);
+					exit;
+				}
+			}
+
+			$data['userId'] = $this->input->post('userId');
+			$data['frameId'] = $this->input->post('frameId');
+			$data['frameType'] = 'normalFrame';
+
+			$apply = $this->db->insert("applyFrameRecords", $data);
+
+			if ($this->db->set('myFrame', $this->input->post('frameId'))->where('id', $this->input->post('userId'))->update('users')) {
+				echo json_encode([
+					'success' => 1,
+					'message' => 'frame applied',
+					// 'details' => $this->db->get_where('users', ['id' => $this->input->post('userId')])->row_array();
+				]);
+				exit;
+			}
+		}
+	}
+
+	public function getAppliedFrame()
+	{
+
+		if (!$this->input->post('userId')) {
+			echo json_encode([
+				'success' => 0,
+				'message' => 'param cannot be null!'
+			]);
+			exit;
+		}
+
+		$checkUser = $this->db->get_where('users', ['id' => $this->input->post('userId')])->row_array();
+
+		if (empty($checkUser)) {
+			echo json_encode([
+				'success' => 0,
+				'message' => 'userId not valid'
+			]);
+			exit;
+		}
+
+		$getApplyFrame = $this->db->get_where('applyFrameRecords', ['userId' => $this->input->post('userId')])->row_array();
+
+		if (!!$getApplyFrame) {
+
+			$getType = $getApplyFrame['frameType'];
+
+			if ($getType == 'vipFrames') {
+
+				$getDetails = $this->db->get_where('applyFrameRecords', ['userId' => $this->input->post('userId'), 'frameType' => 'vipFrames'])->row_array();
+
+				$getFrameId = $getDetails['frameId'];
+
+				$frame = $this->db->get_where('vipFrames', ['id' => $getFrameId])->row_array();
+
+
+				echo json_encode([
+
+					'success' => 1,
+					'message' => 'frame found',
+					'details' => $frame
+				]);
+				exit;
+			} elseif ($getType == 'normalFrame') {
+
+				$getDetails = $this->db->get_where('applyFrameRecords', ['userId' => $this->input->post('userId'), 'frameType' => 'normalFrame'])->row_array();
+
+				$getFrameId = $getDetails['frameId'];
+
+				$frame = $this->db->get_where('framesPerLevel', ['id' => $getFrameId])->row_array();
+
+				$frame['image'] = base_url() . $frame['image'];
+
+
+				echo json_encode([
+
+					'success' => 1,
+					'message' => 'frame found',
+					'details' => $frame
+				]);
+				exit;
+			} else {
+				echo json_encode([
+					'success' => 0,
+					'message' => 'frame not found!'
+				]);
+				exit;
+			}
+		} else {
+			echo json_encode([
+				'success' => 0,
+				'message' => 'details not found!'
+			]);
+			exit;
+		}
+	}
+
+	public function myVideos()
+	{
+		if(!$this->input->post('userId'))
+		{
+			echo json_encode([
+				'success' => 0,
+				'message' => 'Enter userId'
+			]);
+			exit;
+		}
+
+		$getvideos = $this->db->select('id , userId , description , videoPath , commentCount , viewCount , likeCount , thumbnail , hashTag, created')->from('userVideos')->order_by('created','DESC')->where(['userId' => $this->input->post('userId')])->get()->result_array();
+		if(!$getvideos)
+		{
+			echo json_encode([
+
+				'success' => 0,
+				'message' => 'No videos by user'
+			]);
+			exit;
+		}
+
+		$ab=[];
+		foreach($getvideos as $list)
+		{
+			$id = $list['userId'];
+			$list['usersInfo'] = $this->db->select('id , name , image')->from('users')->where(['id' => $id])->get()->row_array();
+			$ab[]=$list;
+		}
+
+		$data = $ab;
+
+		echo json_encode([
+
+			'success' => 1,
+			'message' => 'my videos list',
+			'details' => $data
+		]);
+	}
+
+// public function myLikess()
+// 	{
+//         $l =$this->db->select('users.id as userId,users.name,users.image,userVideos.id as videoId, userVideos.thumbnail,userVideos.description,userVideos.videoPath,userVideos.commentCount,userVideos.viewCount,userVideos.likeCount,userVideos.hashtag')
+// 		->from('users')
+//         ->join('videoLikeOrUnlike','videoLikeOrUnlike.userId = users.id')
+//         ->join('userVideos','userVideos.id=videoLikeOrUnlike.videoId')
+//         ->where(['videoLikeOrUnlike.userId' => $this->input->post('id') , 'videoLikeOrUnlike.status' => '1'])
+// 		->get()->result_array();
+
+//         foreach($l as $list)
+//         {
+// 			$data['details'] = $list;
+// 		}      
+        
+// 		echo json_encode($data);	
+// 	}
+
+	// public function myLikess()
+	// {
+    //     $l =$this->db->select("userVideos.id as liked")
+	// 	->from('users')
+    //     ->join('videoLikeOrUnlike','videoLikeOrUnlike.userId = users.id')
+    //     ->join('userVideos', 'userVideos.id = videoLikeOrUnlike.videoId')
+    //     ->where(['videoLikeOrUnlike.userId' => $this->input->post('id') , 'videoLikeOrUnlike.status' => '1'])->get()->result_array();
+	// 	$lv=[];
+		
+	// 	foreach($l as $list)
+    //     {
+    //         $id = $list['liked'];
+
+    //         $result['liked']=  $this->db->select('userVideos.thumbnail as thumbnail , userVideos.id as ID')->from('users')
+    //         ->join('userVideos', 'userVideos.userId = users.id')
+    //         ->where('userVideos.id', $id)->get()->row_array();
+
+    //         // //likes
+    //         // $result['likes'] = $this->db->select('count(videoLikeOrUnlike.type) as likes')->from('userVideos')
+    //         // ->join('videoLikeOrUnlike', 'videoLikeOrUnlike.videoId = userVideos.id')
+    //         // ->where('userVideos.id' , $id)->get()->row_array();
+
+    //         $lv[] = $result; 
+    //     }
+    //     $data = $lv;
+	// 	echo json_encode([
+	// 		'details' => $data
+	// 	]);
+	// }
+
+	public function myLikes()
+	{
+        $l =$this->db->select("userVideos.id as liked")
+		->from('users')
+        ->join('videoLikeOrUnlike','videoLikeOrUnlike.userId = users.id')
+        ->join('userVideos', 'userVideos.id = videoLikeOrUnlike.videoId')
+        ->where(['videoLikeOrUnlike.userId' => $this->input->post('id') , 'videoLikeOrUnlike.status' => '1'])->get()->result_array();
+		$lv=[];
+		
+		if(!$l)
+		{
+			echo json_encode([
+				'success' => 0,
+				'message' => 'no videos liked'
+			]);
+			exit;
+		}
+		foreach($l as $list)
+        {
+            $id = $list['liked'];
+
+            $result=$this->db->select('users.id as userId,users.name,users.image,userVideos.id as videoId,userVideos.thumbnail as thumbnail,userVideos.description,userVideos.videoPath,userVideos.likeCount,userVideos.created')
+			->from('users')
+            ->join('userVideos', 'userVideos.userId = users.id')
+			->order_by('likeCount','DESC')
+            ->where('userVideos.id', $id)->get()->result_array();
+			foreach($result as $row)
+			{
+				$lv[] = $row; 
+			}
+
+        }
+		$data = $lv;
+		
+        echo json_encode([
+			'success' => 1,
+			'message' => 'my liked list',
+			'details' => $data
+		]);
+	}
+
+//////////////////////////
+
+// public function shareVideo()
+// 	{
+// 		if(!($this->input->post('userId') && $this->input->post('videoId')))
+// 		{
+// 			echo json_encode([
+// 				'success' => false,
+// 				'message' => 'Enter userId & videoId'
+// 			]);
+// 			exit;
+// 		}
+// 			$data['userId'] =  $this->input->post('userId');
+// 			$data['videoId'] = $this->input->post('videoId');
+
+// 			$insert = $this->db->insert('shareVideos' , $data);
+
+// 			if($insert)
+// 			{
+// 				$result['success'] = true;
+// 				$result['message'] = 'Video Shared';
+// 				$a = $this->db->select('userVideos.id  as videoId, userId , description , videoPath , commentCount , viewCount , likeCount , thumbnail , hashTag, shareCount')->from('userVideos')->where(['id' => $this->input->post('videoId')])->get()->result_array();
+// 				foreach($a as $list)
+// 				{
+// 					$list['shareCount'] = $list['shareCount'] + 1;
+
+// 					$updateShareCount = $this->db->set(['shareCount'=> $list['shareCount']])
+// 					->where(['id' => $this->input->post('videoId')])
+// 					->update('userVideos');
+
+// 					$getShareCount=$this->db->select('shareCount')->from('userVideos')->where(['id' => $this->input->post('videoId')])->get()->row_array();
+// 					$list['shareCount']=$getShareCount;
+					
+// 					$id = $list['userId'];
+// 					$usersInfo = $this->db->select('id , name , image')->from('users')->where(['id' => $id])->get()->row_array();
+// 					if($usersInfo)
+// 					{
+// 						$list['userinfo']=$usersInfo;
+// 					}
+// 					else
+// 					{
+// 						$list['usersInfo']='';
+// 					}
+// 					$result['details']=$list;
+// 				}			
+// 			}
+// 		echo json_encode($result);
+// 	}
+
+
+	// public function shareVideo()
+	// {
+	// 	if(!($this->input->post('userId') && $this->input->post('videoId')))
+	// 	{
+	// 		echo json_encode([
+	// 			'success' => false,
+	// 			'message' => 'Enter userId & videoId'
+	// 		]);
+	// 		exit;
+	// 	}
+
+	// 	///// video check
+	// 		$checkvideo=$this->db->select('id')
+	// 		->from('userVideos')
+	// 		->where(['id'=>$this->input->post('videoId')])
+	// 		->get()->row_array();
+
+	// 		if(!$checkvideo)
+	// 		{
+	// 			echo json_encode([
+	// 				'success' => false,
+	// 				'message' => 'Enter valid videoId'
+	// 			]);
+	// 			exit;
+	// 		}
+
+	// 	/////// user check
+	// 	$checkuser=$this->db->select('id')
+	// 	->from('users')
+	// 	->where(['id'=>$this->input->post('userId')])
+	// 	->get()->row_array();
+
+	// 	if(!$checkuser)
+	// 	{
+	// 		echo json_encode([
+	// 			'success' => false,
+	// 			'message' => 'Enter valid userId'
+	// 		]);
+	// 		exit;
+	// 	}
+
+	// 		//////share check
+	// 		$checkshare=$this->db->select('userId')
+	// 		->from('shareVideos')
+	// 		->where(['userId'=>$this->input->post('userId'),'videoId'=>$this->input->post('videoId') ])
+	// 		->get()->row_array();
+
+	// 		if($checkshare)
+	// 		{
+	// 			$result['success'] = true;
+	// 			$result['message'] = 'Video already shared';
+	// 			$getDetails = $this->db->select('userVideos.id  as videoId, userId , users.name, users.image, description , videoPath , commentCount , viewCount , likeCount , thumbnail , hashTag, shareCount')
+	// 			->from('userVideos')
+	// 			->join('users','users.id=userVideos.userId')
+	// 			->where(['userVideos.id' => $this->input->post('videoId')])
+	// 			->get()->result_array();
+	// 			foreach($getDetails as $list)
+	// 			{
+	// 				$result['details']=$list;
+	// 			}
+	// 			echo json_encode($result);
+	// 			exit;
+	// 		}
+
+
+	// 			$data['userId'] =  $this->input->post('userId');
+	// 			$data['videoId'] = $this->input->post('videoId');
+	// 			$insert = $this->db->insert('shareVideos' , $data);
+
+	// 			$result['success'] = true;
+	// 			$result['message'] = 'Video Shared';
+	// 			$a = $this->db->select('userVideos.id  as videoId, userId , description , videoPath , commentCount , viewCount , likeCount , thumbnail , hashTag, shareCount')->from('userVideos')->where(['id' => $this->input->post('videoId')])->get()->result_array();
+	// 			foreach($a as $list)
+	// 			{
+	// 				$list['shareCount'] = $list['shareCount'] + 1;
+
+	// 				$updateShareCount = $this->db->set(['shareCount'=> $list['shareCount']])
+	// 				->where(['id' => $this->input->post('videoId')])
+	// 				->update('userVideos');
+
+	// 				$getShareCount=$this->db->select('shareCount')->from('userVideos')->where(['id' => $this->input->post('videoId')])->get()->row_array();
+	// 				$list['shareCount']=$getShareCount;
+					
+	// 				$id = $list['userId'];
+	// 				$usersInfo = $this->db->select('id , name , image')->from('users')->where(['id' => $id])->get()->row_array();
+	// 				if($usersInfo)
+	// 				{
+	// 					$list['userinfo']=$usersInfo;
+	// 				}
+	// 				else
+	// 				{
+	// 					$list['usersInfo']='';
+	// 				}
+	// 				$result['details']=$list;
+	// 			}			
+	// 	echo json_encode($result);
+	// }
+
+///////////
+
+public function shareVideo()
+	{
+		if(!($this->input->post('userId') && $this->input->post('videoId')))
+		{
+			echo json_encode([
+				'success' => false,
+				'message' => 'Enter userId & videoId'
+			]);
+			exit;
+		}
+
+		///// video check
+			$checkvideo=$this->db->select('id')
+			->from('userVideos')
+			->where(['id'=>$this->input->post('videoId')])
+			->get()->row_array();
+
+			if(!$checkvideo)
+			{
+				echo json_encode([
+					'success' => false,
+					'message' => 'Enter valid videoId'
+				]);
+				exit;
+			}
+
+		/////// user check
+		$checkuser=$this->db->select('id')
+		->from('users')
+		->where(['id'=>$this->input->post('userId')])
+		->get()->row_array();
+
+		if(!$checkuser)
+		{
+			echo json_encode([
+				'success' => false,
+				'message' => 'Enter valid userId'
+			]);
+			exit;
+		}
+
+			//////share check
+			$checkshare=$this->db->select('userId')
+			->from('shareVideos')
+			->where(['userId'=>$this->input->post('userId'),'videoId'=>$this->input->post('videoId') ])
+			->get()->row_array();
+
+			if($checkshare)
+			{
+				$result['success'] = true;
+				$result['message'] = 'Video already shared';
+				$getDetails = $this->db->select('userVideos.id  as videoId, userId , users.name, users.image, description , videoPath , commentCount , viewCount , likeCount , thumbnail , hashTag, shareCount')
+				->from('userVideos')
+				->join('users','users.id=userVideos.userId')
+				->where(['userVideos.id' => $this->input->post('videoId')])
+				->get()->result_array();
+				foreach($getDetails as $list)
+				{
+					$result['details']=$list;
+				}
+				echo json_encode($result);
+				exit;
+			}
+
+
+				$data['userId'] =  $this->input->post('userId');
+				$data['videoId'] = $this->input->post('videoId');
+				$insert = $this->db->insert('shareVideos' , $data);
+
+				$result['success'] = true;
+				$result['message'] = 'Video Shared';
+				
+				$a = $this->db->select('userVideos.id  as videoId, userId ,users.name, users.image, description , videoPath , commentCount , viewCount , likeCount , thumbnail , hashTag, shareCount')
+				->from('userVideos')
+				->join('users','users.id=userVideos.userId')
+				->where(['userVideos.id' => $this->input->post('videoId')])
+				->get()->result_array();
+				
+				foreach($a as $list)
+				{
+					$count=$list['shareCount'] + 1;
+
+					$updateShareCount = $this->db->set(['shareCount'=> $count])
+					->where(['id' => $this->input->post('videoId')])
+					->update('userVideos');
+					$list['shareCount']="$count";
+
+					//$list['shareCount']=$this->db->select('shareCount')->from('userVideos')->where(['id' => $this->input->post('videoId')])->get()->row_array();
+					
+					// $id = $list['userId'];
+					// $usersInfo = $this->db->select('id , name , image')->from('users')->where(['id' => $id])->get()->row_array();
+					// if($usersInfo)
+					// {
+					// 	$list['userinfo']=$usersInfo;
+					// }
+					// else
+					// {
+					// 	$list['usersInfo']='';
+					// }
+					$result['details']=$list;
+				}			
+		echo json_encode($result);
+	}
+/////////////
+
+	public function createFamily()
+	{
+		if(!($this->input->post('userId') && $this->input->post('familyName') && $this->input->post('familyDescription') && $this->upload->data()))
+		{
+			echo json_encode([
+				'status' => 0,
+				'message' => 'Enter all required fields'
+			]);
+			exit;
+		}
+
+		/////// user check
+		$checkuser=$this->db->select('id')
+							->from('users')
+							->where(['id'=>$this->input->post('userId')])
+							->get()->row_array();
+
+		if(!$checkuser)
+		{
+			echo json_encode([
+				'success' => 0,
+				'message' => 'Enter valid userId'
+			]);
+			exit;
+		}
+
+			//Checking if family is already created
+			$checkFamily=$this->db->select('*')
+									->from('family')
+									->where(['userId' => $this->input->post('userId')])
+									->get()->result_array();
+
+			if(!!($checkFamily))
+			{
+				$result['status'] = 1;
+				$result['message'] = 'Family details found';
+				foreach ($checkFamily as $list)
+				{
+					$result['details'] = $list;
+				}
+				echo json_encode($result);
+				exit;
+			}
+
+			
+			////Inserting the family details in database
+			$upload['userId'] = $this->input->post('userId');
+			$upload['familyName'] = $this->input->post('familyName');
+			$upload['familyDescription'] = $this->input->post('familyDescription');
+			
+			if (!empty($_FILES["familyImage"]["name"]))
+			{
+				$upload['familyImage'] = $this->uploadVideo($_FILES["familyImage"]);
+				$createFamily=$this->db->insert('family', $upload);
+
+				$familyData['familyId'] = $this->db->insert_id();
+				$familyData['userId'] = $checkuser['id'];
+				$familyData['position'] = '1';
+				$familyData['status'] = '1';
+
+
+				$this->db->insert('familyMembers', $familyData);
+
+				$getFamily=$this->db->select('*')
+									->from('family')
+									->where(['userId' => $this->input->post('userId') , 'familyName' => $this->input->post('familyName')])
+									->get()->result_array();
+
+				$result['status'] = 1;
+				$result['message'] = 'Family created';
+				foreach ($getFamily as $list)
+				{
+					$result['details'] = $list;
+				}
+				echo json_encode($result);
+			}
+	}
+
+	public function getUserFamilyDetails()
+	{
+		if(!$this->input->post('userId'))
+		{
+			echo json_encode([
+				'status' => 0,
+				'message' => 'Enter userId'
+			]);
+			exit;
+		}
+
+		// Checking if user is a registered user.
+		$checkuser=$this->db->select('id')
+		->from('users')
+		->where(['id'=>$this->input->post('userId')])
+		->get()->row_array();
+		if(!$checkuser)
+		{
+			$result['status'] = 1;
+			$result['message'] = 'Invalid user';
+			echo json_encode($result);
+			exit;
+		}
+
+		////Get Family Details
+		$getFamily=$this->db->select('*')
+			->from('family')
+			->where(['userId' => $this->input->post('userId')])
+			->get()->result_array();
+
+			if(!$getFamily)
+			{
+				$result['status'] = 0;
+				$result['message'] = 'No family by user';
+				echo json_encode($result);
+				exit;
+			}
+			$result['status'] = 1;
+			$result['message'] = 'Family details found';
+			foreach ($getFamily as $list)
+			{
+				$result['details'] = $list;
+			}
+			echo json_encode($result);
+		}
+
+	public function deleteFamily()
+	{
+		if(!$this->input->post('userId'))
+		{
+			echo json_encode([
+				'status' => 0,
+				'message' => 'Enter userId'
+			]);
+			exit;
+		}
+
+		// Checking if user is a registered user.
+		$checkuser=$this->db->select('id')
+		->from('users')
+		->where(['id'=>$this->input->post('userId')])
+		->get()->row_array();
+		if(!$checkuser)
+		{
+			echo json_encode([
+				'success' => 0,
+				'message' => 'Enter valid userId'
+			]);
+			exit;
+		}
+
+		////Get Family Details
+			$getFamily=$this->db->select('*')
+			->from('family')
+			->where(['userId' => $this->input->post('userId')])
+			->get()->result_array();
+
+			if(!$getFamily)
+			{
+				$result['status'] = 0;
+				$result['message'] = 'No family by user';
+				echo json_encode($result);
+				exit;
+			}
+
+			$this->db->where('userId',$this->input->post('userId'));
+			$delete=$this->db->delete('family');
+			if($delete)
+			{
+				$result['status'] = 1;
+				$result['message'] = 'Family deleted';
+				echo json_encode($result);
+			}
+	}
+
+	public function send_invite_to_user()
+	{
+
+		if($_SERVER['REQUEST_METHOD'] === 'POST'){
+
+			$user = $this->db->get_where('users', ['id' => $this->input->post('userId')])->row_array();
+			if(empty($user)){
+				echo json_encode([
+					'status' => 0,
+					'message' => 'invalid userId'
+				]);exit;
+			}
 	
+			$family = $this->db->get_where('family', ['id' => $this->input->post('familyId'), 'userId' => $this->input->post('leaderId')])->row_array();
+			if(empty($family)){
+				echo json_encode([
+					'status' => 0,
+					'message' => 'no leader found with gievn family id'
+				]);exit;
+			}
+	
+			$check = $this->db->get_where('family_invitation_to_user', ['userId' => $user['id'], 'familyId' => $family['id']])->row_array();
+			if(!empty($check)){
+				echo json_encode([
+					'status' => 0,
+					'message' => 'invite already sent'
+				]);exit;
+			}
+	
+			$data['userId'] = $user['id'];
+			$data['familyId'] = $family['id'];
+			$data['date'] = date('Y-m-d H:i:s');
+	
+			$this->db->insert('family_invitation_to_user', $data);
+			echo json_encode([
+				'status' => 1,
+				'message' => 'invite send successfuly'
+			]);exit;
+
+		}else{
+			echo json_encode([
+				'status' => 0,
+				'message' => 'method not allowed'
+			]);exit;
+		}
+
+
+	}
+
+	public function my_invitations(){
+		if($_SERVER['REQUEST_METHOD'] === 'POST'){
+
+			$user = $this->db->get_where('users', ['id' => $this->input->post('userId')])->row_array();
+			if(empty($user)){
+				echo json_encode([
+					'status' => 0,
+					'message' => 'inavlid userId'
+				]);exit;
+			}
+
+			$invitations = $this->db->get_where('family_invitation_to_user', ['userId' => $user['id']])->result_array();
+			if(empty($invitations)){
+				echo json_encode([
+					'status' => 0,
+					'message' => 'no invitations found'
+				]);exit;
+			}
+
+			$final = [];
+			foreach($invitations as $invite){
+
+				$invite['familyId'] = $this->db->get_where('family', ['id' => $invite['familyId']])->row_array();
+
+				$final[] = $invite;
+
+			}
+
+			if(empty($final)){
+				echo json_encode([
+					'status' => 0,
+					'message' => 'no details found'
+				]);exit;
+			}
+
+			echo json_encode([
+				'status' => 1,
+				'message' => 'invite found',
+				'details' => $final
+			]);exit;
+
+		}else{
+			echo json_encode([
+				'status' => 0,
+				'message' => 'method not allowed'
+			]);exit;
+		}
+	}
+
+
+	public function accept_reject_invitation(){
+		if($_SERVER['REQUEST_METHOD'] === 'POST'){
+
+			$user = $this->db->get_where('users', ['id' => $this->input->post('userId')])->row_array();
+			if(empty($user)){
+				echo json_encode([
+					'status' => 0,
+					'message' => 'invalid userId'
+				]);exit;
+			}
+
+			$invitation = $this->db->get_where('family_invitation_to_user', ['userId' => $user['id'], 'familyId' => $this->input->post('familyId')])->row_array();
+			if(empty($invitation)){
+				echo json_encode([
+					'status' => 0,
+					'message' => 'no invitation found'
+				]);exit;
+			}
+
+			if($this->input->post('accept') == '1'){
+
+				$data['familyId'] = $this->input->post('familyId');
+				$data['userId'] = $user['id'];
+				$data['position'] = '2';
+				$data['status'] = '1';
+				$data['date'] = date('Y-m-d H:i:s');
+
+				$this->db->insert('familyMembers', $data);
+
+				$this->db->delete('family_invitation_to_user', ['id' => $invitation['id']]);
+				echo json_encode([
+					'status' => 1,
+					'message' => 'invitation accepted'
+				]);exit;
+
+			}else if($this->input->post('accept') == '2'){
+
+				$this->db->delete('family_invitation_to_user', ['id' => $invitation['id']]);
+				echo json_encode([
+					'status' => 2,
+					'message' => 'invitation rejected'
+				]);exit;
+
+			}else{
+				echo json_encode([
+					'status' => 0,
+					'message' => 'invalid accept parameter'
+				]);exit;
+			}
+
+
+		}else{
+			echo json_encode([
+				'status' => 0,
+				'message' => 'method not allowed'
+			]);exit;
+		}
+	}
+
+
+	public function all_users(){
+		if($_SERVER['REQUEST_METHOD'] === 'POST'){
+
+			$user = $this->db->get_where('users', ['id' => $this->input->post('userId')])->row_array();
+			if(empty($user)){
+				echo json_encode([
+					'status' => 0,
+					'message' => 'invalid userId'
+				]);exit;
+			}
+
+			$family = $this->db->get_where('family', ['id' => $this->input->post('familyId'), 'userId' => $user['id']])->row_array();
+			if(empty($family)){
+				echo json_encode([
+					'status' => 0,
+					'message' => 'user not a leader'
+				]);exit;
+			}
+			
+			$all_users = $this->db->select('*')
+								  ->from('users')
+								  ->where('users.id !=', $user['id'])
+								  ->get()->result_array();
+
+								  if(empty($all_users)){
+									echo json_encode([
+										'status' => 0,
+										'message' => 'no users found'
+									]);exit;
+								  }else{
+
+									$final = [];
+									foreach($all_users as $users){
+
+										$family = $this->db->get_where('familyMembers', ['userId' => $users['id']])->row_array();
+										if(empty($family)){
+											$users['family'] = null;
+										}else{
+											$users['family'] = $this->db->get_where('family', ['id' => $family['familyId']])->row_array();
+										}
+
+										$invite_status = $this->db->get_where('family_invitation_to_user', ['userId' => $users['id'], 'familyId' => $family['id']])->row_array();
+										if(empty($invite_status)){
+
+											$users['invite_status'] = false;
+											
+										}else{
+
+											$users['invite_status'] = true;
+
+										}
+
+										$final[] = $users;
+
+									}
+
+									echo json_encode([
+										'status' => 1,
+										'message' => 'users found',
+										'detail' => $final
+									]);exit;
+								  }
+
+		}else{
+			echo json_encode([
+				'status' => 0,
+				'message' => 'method not allowed'
+			]);exit;
+		}
+	}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 }

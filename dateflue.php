@@ -13112,7 +13112,9 @@ class DateFlue extends CI_Controller
 				->get()
 				->result_array();
 
-			if (!!$checkUserId) {
+				
+				if (!!$checkUserId) {
+					
 
 				foreach ($checkUserId as $get) {
 
@@ -13197,6 +13199,15 @@ class DateFlue extends CI_Controller
 
 					$get['connectionCounts'] = $c + $s + $sr;
 
+					// print_r($get['addressId']);exit;
+
+					$get['address'] = $this->db->get_where('addAddress', ['id' => $get['addressId']])->row_array() ? : null ;
+
+					$get['address']['country'] = $this->db->select('name')->get_where('countries', ['id' => $get['address']['country']])->row_array() ? : null;
+					$get['address']['state'] = $this->db->select('name')->get_where('states', ['id' => $get['address']['state']])->row_array() ? : null;
+					$get['address']['city'] = $this->db->select('name')->get_where('cities', ['id' => $get['address']['city']])->row_array() ? : null;
+ 
+					// print_r($get);exit;
 					$final[] = $get;
 				}
 
@@ -13295,6 +13306,12 @@ class DateFlue extends CI_Controller
 						$sr = (string)count($FinalSuperReverse);
 
 						$get['connectionCounts'] = $c + $s + $sr;
+
+						$get['address'] = $this->db->get_where('addAddress', ['id' => $get['addressId']])->row_array() ? : null;
+
+						$get['address']['country'] = $this->db->select('name')->get_where('countries', ['id' => $get['address']['country']])->row_array() ? : null;
+						$get['address']['state'] = $this->db->select('name')->get_where('states', ['id' => $get['address']['state']])->row_array() ? : null;
+						$get['address']['city'] = $this->db->select('name')->get_where('cities', ['id' => $get['address']['city']])->row_array() ? : null;
 
 						$finalz[] = $get;
 					}
@@ -15262,13 +15279,40 @@ class DateFlue extends CI_Controller
 
 		if ($this->input->post()) {
 
+			$city = $this->db->get_where('cities', ['id' => $this->input->post('city_id')])->row_array();
+			if(empty($city)){
+				echo json_encode([
+					'status' => 0,
+					'message' => 'invalid city_id'
+				]);exit;
+			}
+
+			// $state = $this->db->get_where('states', ['id' => $city['state_id']])->row_array();
+			$state = $this->db->get_where('states', ['id' => $this->input->post('state_id')])->row_array();
+			if(empty($state)){
+				echo json_encode([
+					'status' => 0,
+					'message' => 'invalid state_id'
+				]);exit;
+			}
+
+			// $country = $this->db->get_where('countries', ['id' => $state['country_id']])->row_array();
+			$country = $this->db->get_where('countries', ['id' => $this->input->post('country_id')])->row_array();
+			if(empty($country)){
+				echo json_encode([
+					'status' => 0,
+					'message' => 'invalid country_id'
+				]);exit;
+			}
+
 			$data['name'] = $this->input->post("name");
 			$data['userId'] = $this->input->post("userId");
 			$data['number'] = $this->input->post("number");
 			$data['alternate_number'] = $this->input->post("alternate_number");
 			$data['pincode'] = $this->input->post("pincode");
-			$data['state'] = $this->input->post("state");
-			$data['city'] = $this->input->post("city");
+			$data['country'] = $country['id'];
+			$data['state'] = $state['id'];
+			$data['city'] = $city['id'];
 			$data['address'] = $this->input->post("address");
 			$data['created'] = date("Y-m-d H:i:s");
 
@@ -15326,6 +15370,9 @@ class DateFlue extends CI_Controller
 				}
 				if (!!$this->input->post("pincode")) {
 					$data['pincode'] = $this->input->post("pincode");
+				}
+				if (!!$this->input->post("country")) {
+					$data['country'] = $this->input->post("country");
 				}
 				if (!!$this->input->post("state")) {
 					$data['state'] = $this->input->post("state");
@@ -15422,11 +15469,22 @@ class DateFlue extends CI_Controller
 
 		if (!!$get) {
 
+			$final = [];
+			foreach($get as $gets){
+
+				$gets['country'] = $this->db->select('name')->get_where('countries', ['id' => $gets['country']])->row_array();
+				$gets['state'] = $this->db->select('name')->get_where('states', ['id' => $gets['state']])->row_array();
+				$gets['city'] = $this->db->select('name')->get_where('cities', ['id' => $gets['city']])->row_array();
+				
+				$final[] = $gets;
+
+			}
+
 			echo json_encode([
 
 				"success" => "1",
 				"message" => "details found successfully",
-				"details" => $get,
+				"details" => $final,
 			]);
 			exit;
 		} else {
@@ -17608,6 +17666,7 @@ class DateFlue extends CI_Controller
 			$data['direct_buy'] = 1;
 			$tax = $data['subtotal'] + $data['shipping'];
 			$data['total'] = $tax;
+			$data['quantity'] = $this->input->post('quantity');
 			$tax = ($tax_amount / 100) * $tax;
 			$data['total'] += $tax;
 			$data['date'] = date('Y-m-d H:i:s');
@@ -17754,7 +17813,47 @@ class DateFlue extends CI_Controller
 				$ids = explode(',',$order['product_ids']);
 				foreach($ids as $id){
 
+
+					$details = $this->db->get_where('addToCart', ['id' => $id])->row_array();
+					$quantity = $details['quantity'];
+
+					$product = $this->db->get_where('addProducts', ['id' => $details['productId']])->row_array();
+					$current_quantity = $product['quantity'];
+
+					if($current_quantity < $quantity){
+						echo json_encode([
+							'status' => 0,
+							'message' => 'product out of stock remove from cart',
+							'details' => $product
+						]);exit;
+					}else{
+
+						$pdata['quantity'] = $current_quantity - $quantity;
+						$this->db->set($pdata)->where('id', $product['id'])->update('addProducts');
+
+					}
+
 					$this->db->delete('addToCart', ['id' => $id]);
+
+				}
+
+			}else if($order['direct_buy'] == '1'){
+
+				$quantity = $order['quantity'];
+
+				$product = $this->db->get_where('addProducts', ['id' => $order['product_ids']])->row_array();
+				$current_quantity = $product['quantity'];
+
+				if($current_quantity < $quantity){
+					echo json_encode([
+						'status' => 0,
+						'message' => 'product out of stock remove from cart',
+						'details' => $product
+					]);exit;
+				}else{
+
+					$pdata['quantity'] = $current_quantity - $quantity;
+					$this->db->set($pdata)->where('id', $product['id'])->update('addProducts');
 
 				}
 
@@ -17853,6 +17952,258 @@ class DateFlue extends CI_Controller
 				'details' => $final
 			]);exit;
 
+
+		}else{
+			echo json_encode([
+				'status' => 0,
+				'message' => 'method not allowed'
+			]);exit;
+		}
+	}
+
+	public function select_address(){
+		if($this->input->post()){
+
+			$user = $this->db->get_where('users', ['id' => $this->input->post('userId')])->row_array();
+			if(empty($user)){
+				echo json_encode([
+					'status' => 0,
+					'message' => 'invalid userId'
+				]);exit;
+			}
+
+			$address = $this->db->get_where('addAddress', ['id' => $this->input->post('addressId'), 'userId' => $user['id']])->row_array();
+			if(empty($address)){
+				echo json_encode([
+					'status' => 0,
+					'message' => 'invalid addressId'
+				]);exit;
+			}
+
+			$data['addressId'] = $address['id'];
+			$this->db->set($data)->where('id', $user['id'])->update('users');
+
+			echo json_encode([
+				'status' => 1,
+				'message' => 'address updated'
+			]);exit;
+
+		}else{
+			echo json_encode([
+				'status' => 0,
+				'message' => 'method not allowed'
+			]);exit;
+		}
+	}
+
+	public function update_product_quantity(){
+		if($_SERVER['REQUEST_METHOD'] === 'POST'){
+
+			$user = $this->db->get_where('users', ['id' => $this->input->post('userId')])->row_array();
+			if(empty($user)){
+				echo json_encode([
+					'status' => 0,
+					'message' => 'invalid userId'
+				]);exit;
+			}
+
+			$product = $this->db->get_where('addProducts', ['id' => $this->input->post('productId'), 'userId' => $user['id']])->row_array();
+			if(empty($product)){
+				echo json_encode([
+					'status' => 0,
+					'message' => 'invalid productId'
+				]);exit;
+			}
+
+			if($this->input->post('quantity') < '1'){
+				echo json_encode([
+					'status' => 0,
+					'message' => 'quantity can not be less then 1'
+				]);exit;
+			}
+
+			$data['quantity'] = $product['quantity'] + $this->input->post('quantity');
+
+			$this->db->set($data)->where('id', $product['id'])->update('addProducts');
+			echo json_encode([
+				'status' => 1,
+				'message' => 'quantity updated',
+				'details' => $data
+			]);exit;
+
+		}else{
+			echo json_encode([
+				'status' => 0,
+				'message' => 'method not allowed'
+			]);exit;
+		}
+	}
+
+
+	public function delete_product(){
+		if($_SERVER['REQUEST_METHOD'] === 'POST'){
+
+			$user = $this->db->get_where('users', ['id' => $this->input->post('userId')])->row_array();
+			if(empty($user)){
+				echo json_encode([
+					'status' => 0,
+					'message' => 'invalid userId'
+				]);exit;
+			}
+
+			$product = $this->db->get_where('addProducts', ['id' => $this->input->post('productId'), 'userId' => $user['id']])->row_array();
+			if(empty($product)){
+				echo json_encode([
+					'status' => 0,
+					'message' => 'invalid productId'
+				]);exit;
+			}
+
+			$this->db->delete('addProducts', ['id' => $product['id']]);
+			echo json_encode([
+				'status' => 1,
+				'message' => 'product removed'
+			]);exit;
+
+		}else{
+			echo json_encode([
+				'status' => 0,
+				'message' => 'method not allowed'
+			]);exit;
+		}
+	}
+
+	public function get_cities_by_state(){
+		if($_SERVER['REQUEST_METHOD'] === 'POST'){
+
+			$state = $this->db->get_where('states', ['id' => $this->input->post('stateId')])->row_array();
+			if(empty($state)){
+				echo json_encode([
+					'status' => 0,
+					'message' => 'invalid stateId'
+				]);exit;
+			}
+
+			$cities = $this->db->get_where('cities', ['state_id' => $state['id']])->result_array();
+			if(empty($cities)){
+				echo json_encode([
+					'status' => 0,
+					'message' => 'no cities found'
+				]);exit;
+			}
+
+			echo json_encode([
+				'status' => 1,
+				'message' => 'list found',
+				'details' => $cities
+			]);exit;
+
+		}else{
+			echo json_encode([
+				'status' => 0,
+				'message' => 'method not allowed'
+			]);exit;
+		}
+	}
+
+	public function my_purchase_history(){
+		if($_SERVER['REQUEST_METHOD'] === 'POST'){
+
+			$user = $this->db->get_where('users', ['id' => $this->input->post('userId')])->row_array();
+			if(empty($user)){
+				echo json_encode([
+					'status' => 0,
+					'message' => 'invalid userId'
+				]);exit;
+			}
+
+			$orders = $this->db->get_where('orderDetails', ['userId' => $user['id']])->result_array();
+			if(empty($orders)){
+				echo json_encode([
+					'status' => 0,
+					'message' => 'no orders found'
+				]);exit;
+			}
+
+			$final = [];
+			foreach($orders as $order){
+
+				$arr = false;
+
+				if($order['status'] > '1'){
+
+					if($order['direct_buy'] == '1'){
+
+						// if order is direct buy 
+
+						$product = $this->db->get_where('addProducts', ['id' => $order['product_ids']])->row_array() ?? null;
+						
+
+					}else{
+
+						// if order is from the cart
+
+						$ids = explode(',', $order['product_ids']);
+
+						$product = [];
+
+						$arr = true;
+
+						foreach($ids as $id){
+
+							$details = $this->db->get_where('addToCartDetails', ['id' => $id])->row_array();
+
+							$products = $this->db->get_where('addProducts', ['id' => $details['productId']])->row_array() ?? null;
+
+							$product[] = $products;
+
+						}
+
+					}
+
+					if($arr == true){
+
+						foreach($product as $p){
+
+							if($p == null){
+
+							}else{
+
+								$final[] = $p;
+							}
+						}
+					}else{
+
+						$final[] = $product;
+					}
+
+	
+					unset($product);
+				}
+
+
+			}
+
+			if(empty($final)){
+				echo json_encode([
+					'status' => 0,
+					'message' => 'no details found'
+				]);exit;
+			}
+
+			$last = [];
+
+			foreach($final as $finals){
+				$finals['images'] = $this->db->get_where('addProduct_images', ['addProductId' => $finals['id']])->result_array();
+
+				$last[] = $finals;
+			}
+
+			echo json_encode([
+				'status' => 1,
+				'message' => 'details found',
+				'details' => $last
+			]);exit;
 
 		}else{
 			echo json_encode([
