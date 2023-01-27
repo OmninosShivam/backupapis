@@ -2725,7 +2725,7 @@ class Bango extends CI_Controller
 
 				$title = $checkUser['name'];
 				$mess = $checkUser['username'] . " has started following you.";
-				$type = 'live';
+				$type = 'follow';
 				$imgpath = $checkUser['image'];
 
 				pushNotification($get['reg_id'], $mess, $title, $type, $imgpath);
