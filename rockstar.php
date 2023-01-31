@@ -11385,51 +11385,55 @@ class RockStar extends CI_Controller
 	public function getUserDetails()
 	{
 
-		$getDetails = $this->db->select("user_UploadPost.id user_UploadPostId,user_UploadPost.userId,user_UploadPost.hashtagId,user_UploadPost.description,user_UploadPost.postimage,user_UploadPost.restrictions,user_UploadPost.thumbnail,user_UploadPost.videopath,user_UploadPost.type,user_UploadPost.postlikeCount,user_UploadPost.post_comment_counts,user_UploadPost.video_comment_counts,user_UploadPost.total_price_post,users.*")
+		$user = $this->db->get_where('users', ['id' => $this->input->post('userId')])->row_array();
+		if(empty($user)){
+			echo json_encode([
+				'status' => 0,
+				'message' => 'invalid userId'
+			]);exit;
+		}
+
+		$other_user = $this->db->get_where('users', ['id' => $this->input->post('other_user')])->row_array();
+		if(empty($other_user)){
+			echo json_encode([
+				'status' => 0,
+				'message' => 'invalid other_user'
+			]);exit;
+ 		}
+
+		$other_user['follow_status'] = false;
+		$follow_status = $this->db->get_where('userFollow', ['userId' => $user['id'], 'followingUserId' => $other_user['id'], 'status' => '1'])->row_array();
+		if(!empty($follow_status)){
+			$other_user['follow_status'] = true;
+		}
+
+
+		$getDetails = $this->db->select("user_UploadPost.id user_UploadPostId,user_UploadPost.userId,user_UploadPost.hashtagId,user_UploadPost.description,user_UploadPost.postimage,user_UploadPost.restrictions,user_UploadPost.thumbnail,user_UploadPost.videopath,user_UploadPost.type,user_UploadPost.postlikeCount,user_UploadPost.post_comment_counts,user_UploadPost.video_comment_counts,user_UploadPost.total_price_post")
 			->from("user_UploadPost")
-			->join("users", "users.id = user_UploadPost.userId", "left")
-			->where("user_UploadPost.userId", $this->input->post("userId"))
+			->where("user_UploadPost.userId", $this->input->post("other_user"))
 			->get()
 			->result_array();
 
-		$getDetailss = $this->db->select("users.*")
-			->from("users")
-			->where("users.id", $this->input->post("userId"))
-			->get()
-			->row_array();
+			$final = [];
+			if(!empty($getDetails)){
+				foreach($getDetails as $details){
+					$details['postimage'] = base_url() . $details['postimage'];
+					$final[] = $details;
+				}
+			}
 
-		if (!!$getDetails) {
+		$other_user['post_Details'] = $final;
 
-			echo json_encode([
+		echo json_encode([
+			'status' => 1,
+			'message' => 'details found',
+			'details' => $other_user
+		]);exit;
 
-				"success" => "1",
-				"message" => "details found",
-				"details" => $getDetails,
-
-			]);
-			exit;
-		} elseif (!!$getDetailss) {
-			echo json_encode([
-
-				"success" => "1",
-				"message" => "details found",
-				"details" => $getDetailss
-
-			]);
-			exit;
-		} else {
-			echo json_encode([
-
-				"success" => "0",
-				"message" => "details not found!",
-			]);
-			exit;
-		}
 	}
 
 	public function getfollowUserStories()
 	{
-
 
 		$get = $this->db->select("userFollow.id,userFollow.userId,userFollow.followingUserId,userFollow.status,userFollow.created,userFollow.updated,users.username,concat('" . base_url() . "', users.image) as userImage")
 			->from("userFollow")
@@ -15106,64 +15110,64 @@ class RockStar extends CI_Controller
 				$updata['silverCoins'] += 200;
 				$updata['exp'] += 1;
 
-				$data['task1'] = 1;
+				// $data['task1'] = 1;
 				$data['collect_task1'] = 1;
 			} else if ($this->input->post('type') == '2') {
 
-				$data['task2'] = 1;
+				// $data['task2'] = 1;
 				$data['collect_task2'] = 1;
 			} else if ($this->input->post('type') == '3') {
 
 				$updata['silverCoins'] += 400;
 				$updata['exp'] += 2;
 
-				$data['task3'] = 1;
+				// $data['task3'] = 1;
 				$data['collect_task3'] = 1;
 			} else if ($this->input->post('type') == '4') {
 
-				$data['task4'] = 1;
+				// $data['task4'] = 1;
 				$data['collect_task4'] = 1;
 			} else if ($this->input->post('type') == '5') {
 
 				$updata['diamond'] += 5;
 				$updata['exp'] += 32;
 
-				$data['task5'] = 1;
+				// $data['task5'] = 1;
 				$data['collect_task5'] = 1;
 			} else if ($this->input->post('type') == '6') {
 
 				$updata['diamond'] += 10;
 				$updata['exp'] += 32;
 
-				$data['task6'] = 1;
+				// $data['task6'] = 1;
 				$data['collect_task6'] = 1;
 			} else if ($this->input->post('type') == '7') {
 
 				$updata['diamond'] += 20;
 				$updata['exp'] += 32;
 
-				$data['task7'] = 1;
+				// $data['task7'] = 1;
 				$data['collect_task7'] = 1;
 			} else if ($this->input->post('type') == '8') {
 
 				$updata['exp'] += 5;
 				$updata['coins'] += 16;
 
-				$data['task8'] = 1;
+				// $data['task8'] = 1;
 				$data['collect_task8'] = 1;
 			} else if ($this->input->post('type') == '9') {
 
 				$updata['exp'] += 3;
 				$updata['coins'] += 16;
 
-				$data['task9'] = 1;
+				// $data['task9'] = 1;
 				$data['collect_task9'] = 1;
 			} else if ($this->input->post('type') == '10') {
 
 				$updata['diamond'] += 10;
 				$updata['exp'] += 16;
 
-				$data['task10'] = 1;
+				// $data['task10'] = 1;
 				$data['collect_task10'] = 1;
 			} else if ($this->input->post('type') == '11') {
 
@@ -15171,19 +15175,19 @@ class RockStar extends CI_Controller
 				$updata['exp'] += 16;
 				$updata['coins'] += 20;
 
-				$data['task11'] = 1;
+				// $data['task11'] = 1;
 				$data['collect_task11'] = 1;
 			} else if ($this->input->post('type') == '12') {
 
 				$updata['exp'] += 16;
 
-				$data['task12'] = 1;
+				// $data['task12'] = 1;
 				$data['collect_task12'] = 1;
 			} else {
 
 				$updata['exp'] += 16;
 
-				$data['task13'] = 1;
+				// $data['task13'] = 1;
 				$data['collect_task13'] = 1;
 			}
 
@@ -15217,6 +15221,54 @@ class RockStar extends CI_Controller
 				'message' => 'method not allowed'
 			]);
 			exit;
+		}
+	}
+
+	public function mark_daily_tasks(){
+		if($_SERVER['REQUEST_METHOD'] === 'POST'){
+
+			$user = $this->db->get_where('users', ['id' => $this->input->post('userId')])->row_array();
+			if(empty($user)){
+				echo json_encode([
+					'status' => 0,
+					'message' => 'invalid userId'
+				]);exit;
+			}
+
+			if($this->input->post('type') < 1 || $this->input->post('type') > 13){
+				echo json_encode([
+					'status' => 0,
+					'message' => 'invalid type'
+				]);exit;
+			}
+
+			$data['userId'] = $user['id'];
+			$data['date'] = date('Y-m-d');
+			$task = 'task' . $this->input->post('type');
+			$data[$task] = '1';
+
+			$checkTask = $this->db->get_where('dailyTaskUser', $data)->row_array();
+			if(empty($checkTask)){
+				// insert
+				$this->db->insert('dailyTaskUser', $data);
+				echo json_encode([
+					'status' => 1,
+					'message' => 'dask completed'
+				]);exit;
+			}else{
+				// update 
+				$this->db->set($data)->where('id', $checkTask['id'])->update('dailyTaskUser');
+				echo json_encode([
+					'status' => 1,
+					'message' => 'dask completed'
+				]);exit;
+			}
+
+		}else{
+			echo json_encode([
+				'status' => 0,
+				'message' => 'Method not allowed'
+			]);exit;
 		}
 	}
 
@@ -15789,12 +15841,6 @@ class RockStar extends CI_Controller
 
 			}
 
-
-
-
-
-
-
 		}else{
 			echo json_encode([
 				'status' => 0,
@@ -15802,6 +15848,478 @@ class RockStar extends CI_Controller
 			]);exit;
 		}
 	}
+
+	public function get_top_gifter(){
+		if($_SERVER['REQUEST_METHOD'] === 'POST'){
+
+			$today = date('Y-m-d');
+
+			$final = [];
+			if($this->input->post('type') == '1'){
+				// daily
+
+				$gifter = $this->db->select_sum('userGiftHistory.coin')
+								   ->select('userGiftHistory.userId, userGiftHistory.giftUserId, userGiftHistory.liveId, users.name, users.username, users.image')
+								   ->from('userGiftHistory')
+								   ->join('users', 'users.id = userGiftHistory.userId', 'left')
+								   ->where('liveId !=', '0')
+								   ->where('created', $today)
+								   ->group_by('userId')
+								   ->order_by('userGiftHistory.coin', 'desc')
+								   ->get()->result_array();
+
+								   if(!empty($gifter[0]['coin'])){
+									foreach($gifter as $gift){
+										$gift['image'] = base_url() . $gift['image'];
+										$final[] = $gift;
+									}
+								   }
+				
+			}else if($this->input->post('type') == '2'){
+				// weekly
+				$to_date = date('Y-m-d', strtotime('-7 days'));
+
+				$gifter = $this->db->select_sum('userGiftHistory.coin')
+									->select('userGiftHistory.userId, userGiftHistory.giftUserId, userGiftHistory.liveId, users.name, users.username, users.image')
+									->from('userGiftHistory')
+									->join('users', 'users.id = userGiftHistory.userId', 'left')
+									->where('liveId !=', '0')
+									->where('created <=', $today)
+									->where('created >=', $to_date)
+									->group_by('userId')
+									->order_by('userGiftHistory.coin', 'desc')
+									->get()->result_array();
+
+									if(!empty($gifter[0]['coin'])){
+									foreach($gifter as $gift){
+										$gift['image'] = base_url() . $gift['image'];
+										$final[] = $gift;
+									}
+									}
+				
+				
+			}else if($this->input->post('type') == '3'){
+				// monthly
+				$to_date = date('Y-m-d', strtotime('-1 month'));
+
+					$gifter = $this->db->select_sum('userGiftHistory.coin')
+										->select('userGiftHistory.userId, userGiftHistory.giftUserId, userGiftHistory.liveId, users.name, users.username, users.image')
+										->from('userGiftHistory')
+										->join('users', 'users.id = userGiftHistory.userId', 'left')
+										->where('liveId !=', '0')
+										->where('created <=', $today)
+										->where('created >=', $to_date)
+										->group_by('userId')
+										->order_by('userGiftHistory.coin', 'desc')
+										->get()->result_array();
+
+										if(!empty($gifter[0]['coin'])){
+										foreach($gifter as $gift){
+											$gift['image'] = base_url() . $gift['image'];
+											$final[] = $gift;
+										}
+										}
+				
+				
+			}else if($this->input->post('type') == '4'){
+				// overall
+
+				$gifter = $this->db->select_sum('userGiftHistory.coin')
+									->select('userGiftHistory.userId, userGiftHistory.giftUserId, userGiftHistory.liveId, users.name, users.username, users.image')
+									->from('userGiftHistory')
+									->join('users', 'users.id = userGiftHistory.userId', 'left')
+									->where('liveId !=', '0')
+									->group_by('userId')
+									->order_by('userGiftHistory.coin', 'desc')
+									->get()->result_array();
+
+									if(!empty($gifter[0]['coin'])){
+									foreach($gifter as $gift){
+										$gift['image'] = base_url() . $gift['image'];
+										$final[] = $gift;
+									}
+									}
+				
+				
+			}else{
+				echo json_encode([
+					'status' => 0,
+					'message' => 'invalid type'
+				]);exit;
+			}
+
+			if(empty($final)){
+				echo json_encode([
+					'status' => 0,
+					'message' => 'no gifting found'
+				]);exit;
+			}
+
+			rsort($final);
+			echo json_encode([
+				'status' => 1,
+				'message' => 'details found',
+				'details' => $final
+			]);exit;
+
+
+
+		}else{
+			echo json_encode([
+				'status' => 0,
+				'message' => 'method not allowed'
+			]);exit;
+		}
+
+	}
+
+	public function get_top_gifter_per_live(){
+		if($_SERVER['REQUEST_METHOD'] === 'POST'){
+
+			$live = $this->db->get_where('userLive', ['id' => $this->input->post('liveId')])->row_array();
+			if(empty($live)){
+				echo json_encode([
+					'status' => 0,
+					'message' => 'invalid liveId'
+				]);exit;
+			}
+
+			
+
+			$gifter = $this->db->select_sum('userGiftHistory.coin')
+								->select('userGiftHistory.userId, userGiftHistory.giftUserId, userGiftHistory.liveId, users.name, users.username, users.image')
+								->from('userGiftHistory')
+								->join('users', 'users.id = userGiftHistory.userId', 'left')
+								->where('liveId', $live['id'])
+								->group_by('userId')
+								->order_by('userGiftHistory.coin', 'desc')
+								->get()->result_array();
+
+								if(!empty($gifter[0]['coin'])){
+									foreach($gifter as $gift){
+										$gift['image'] = base_url() . $gift['image'];
+										$final[] = $gift;
+									}
+								}
+
+								if(empty($final)){
+									echo json_encode([
+										'status' => 0,
+										'messsage' => 'no gifting found'
+									]);exit;
+								}
+
+								rsort($final);
+								echo json_encode([
+									'status' => 1,
+									'message' => 'gifting found',
+									'details' => $final
+								]);exit;
+			
+		}else{
+			echo json_encode([
+				'status' => 0,
+				'message' => 'method not allowed'
+			]);exit;
+		}
+	}
+
+	public function get_top_gifter_per_user(){
+		if($_SERVER['REQUEST_METHOD'] === 'POST'){
+
+			$user = $this->db->get_where('users', ['id' => $this->input->post('userId')])->row_array();
+			if(empty($user)){
+				echo json_encode([
+					'status' => 0,
+					'message' => 'invalid userId'
+				]);exit;
+			}
+
+			$final = [];
+
+			$today = date('Y-m-d');
+
+			if($this->input->post('type') == '1'){
+
+				// daily
+
+				$gifter = $this->db->select_sum('userGiftHistory.coin')
+				->select('userGiftHistory.userId, userGiftHistory.giftUserId, userGiftHistory.liveId, users.name, users.username, users.image')
+				->from('userGiftHistory')
+				->join('users', 'users.id = userGiftHistory.userId', 'left')
+				->where('liveId !=', '0')
+				->where('userId', $user['id'])
+				->where('created', $today)
+				->group_by('userId')
+				->order_by('userGiftHistory.coin', 'desc')
+				->get()->row_array();
+
+				if(!empty($gifter['coin'])){
+
+						$gifter['image'] = base_url() . $gifter['image'];
+						$final[] = $gifter;
+
+				}
+
+			}else if($this->input->post('type') == '2'){
+
+				// weekly
+
+				$to_date = date('Y-m-d', strtotime('-7 days'));
+
+				$gifter = $this->db->select_sum('userGiftHistory.coin')
+				->select('userGiftHistory.userId, userGiftHistory.giftUserId, userGiftHistory.liveId, users.name, users.username, users.image')
+				->from('userGiftHistory')
+				->join('users', 'users.id = userGiftHistory.userId', 'left')
+				->where('liveId !=', '0')
+				->where('userId', $user['id'])
+				->where('created >=', $to_date)
+				->where('created <=', $today)
+				// ->group_by('userId')
+				// ->order_by('userGiftHistory.coin', 'desc')
+				->get()->row_array();
+
+				if(!empty($gifter['coin'])){
+
+						$gifter['image'] = base_url() . $gifter['image'];
+						$final[] = $gifter;
+
+				}
+
+			}else if($this->input->post('type') == '3'){
+
+				// monthly
+
+				$to_date = date('Y-m-d', strtotime('-1 month'));
+
+				$gifter = $this->db->select_sum('userGiftHistory.coin')
+				->select('userGiftHistory.userId, userGiftHistory.giftUserId, userGiftHistory.liveId, users.name, users.username, users.image')
+				->from('userGiftHistory')
+				->join('users', 'users.id = userGiftHistory.userId', 'left')
+				->where('liveId !=', '0')
+				->where('userId', $user['id'])
+				->where('created >=', $to_date)
+				->where('created <=', $today)
+				// ->group_by('userId')
+				// ->order_by('userGiftHistory.coin', 'desc')
+				->get()->row_array();
+
+				if(!empty($gifter['coin'])){
+
+						$gifter['image'] = base_url() . $gifter['image'];
+						$final[] = $gifter;
+
+				}
+
+			}else if($this->input->post('type') == '4'){
+
+				// overall
+
+				$gifter = $this->db->select_sum('userGiftHistory.coin')
+				->select('userGiftHistory.userId, userGiftHistory.giftUserId, userGiftHistory.liveId, users.name, users.username, users.image')
+				->from('userGiftHistory')
+				->join('users', 'users.id = userGiftHistory.userId', 'left')
+				->where('liveId !=', '0')
+				->where('userId', $user['id'])
+				// ->group_by('userId')
+				// ->order_by('userGiftHistory.coin', 'desc')
+				->get()->row_array();
+
+				if(!empty($gifter['coin'])){
+						$gifter['image'] = base_url() . $gifter['image'];
+						$final[] = $gifter;
+					}
+			}else{
+				echo json_encode([
+					'status' => 0,
+					'message' => 'invalid type'
+				]);exit;
+			}
+
+								if(empty($final)){
+									echo json_encode([
+										'status' => 0,
+										'messsage' => 'no gifting found'
+									]);exit;
+								}
+
+								rsort($final);
+								echo json_encode([
+									'status' => 1,
+									'message' => 'gifting found',
+									'details' => $final
+								]);exit;
+
+			
+		}else{
+			echo json_encode([
+				'status' => 0,
+				'message' => 'method not allowed'
+			]);exit;
+		}
+	}
+
+	public function get_block_user_list(){
+		if($_SERVER['REQUEST_METHOD'] === 'POST'){
+
+			$user = $this->db->get_where('users', ['id' => $this->input->post('userId')])->row_array();
+			if(empty($user)){
+				echo json_encode([
+					'status' => 0,
+					'message' => 'invalid userId'
+				]);exit;
+			}
+
+			$blocked_users = $this->db->get_where('blockUser', ['userId' => $user['id']])->result_array();
+			if(empty($blocked_users)){
+				echo json_encode([
+					'status' => 0,
+					'message' => 'no blocked users found'
+				]);exit;
+			}
+
+			$final = [];
+			foreach($blocked_users as $users){
+				$users['blockUserId'] = $this->db->select('users.id, users.name, users.username, users.image')->get_where('users', ['id' => $users['blockUserId']])->row_array();
+				$users['blockUserId']['image'] = base_url() . $users['blockUserId']['image'];
+				$final[] = $users;
+			}
+
+			if(empty($final)){
+				echo json_encode([
+					'status' => 0,
+					'message' => 'no data found'
+				]);exit;
+			}
+
+			echo json_encode([
+				'status' => 1,
+				'message' => 'details  found',
+				'details' => $final
+			]);exit;
+
+	
+			
+		}else{
+			echo json_encode([
+				'status' => 0,
+				'message' => 'method not allowed'
+			]);exit;
+		}
+	}
+
+	public function mute_user(){
+		if($_SERVER['REQUEST_METHOD'] === 'POST'){
+
+			$user = $this->db->get_where('users', ['id' => $this->input->post('userId')])->row_array();
+			if(empty($user)){
+				echo json_encode([
+					'status' => 0,
+					'message' => 'invalid userId'
+				]);exit;
+			}
+
+			$other_user = $this->db->get_where('users', ['id' => $this->input->post('other_user')])->row_array();
+			if(empty($other_user)){
+				echo json_encode([
+					'status' => 0,
+					'message' => 'invalid other_user'
+				]);exit;
+			}
+
+			if($user['id'] == $other_user['id']){
+				echo json_encode([
+					'status' => 0,
+					'message' => 'you can not mute yourself'
+				]);exit;
+			}
+
+			$check_mute = $this->db->get_where('mute_users', ['userId' => $user['id'], 'muted_userId' => $other_user['id']])->row_array();
+			if(empty($check_mute)){
+
+				$data['userId'] = $user['id'];
+				$data['muted_userId'] = $other_user['id'];
+				$data['date'] = date('Y-m-d');
+
+				$this->db->insert('mute_users', $data);
+				echo json_encode([
+					'status' => 1,
+					'message' => 'user muted'
+				]);exit;
+
+			}else{
+
+				$this->db->delete('mute_users', ['id' => $check_mute['id']]);
+				echo json_encode([
+					'status' => 2,
+					'message' => 'user unmuted'
+				]);exit;
+
+			}	
+			
+		}else{
+			echo json_encode([
+				'status' => 0,
+				'message' => 'method not allowed'
+			]);exit;
+		}
+	}
+
+
+	public function get_muted_user_list(){
+		if($_SERVER['REQUEST_METHOD'] === 'POST'){
+
+			$user = $this->db->get_where('users', ['id' => $this->input->post('userId')])->row_array();
+			if(empty($user)){
+				echo json_encode([
+					'status' => 0,
+					'message' => 'invalid userId'
+				]);exit;
+			}
+
+
+			$mute_user = $this->db->get_where('mute_users', ['userId' => $user['id']])->result_array();
+			if(empty($mute_user)){
+				echo json_encode([
+					'status' => 0,
+					'message' => 'no users muted'
+				]);exit;
+			}
+
+			$final = [];
+			foreach($mute_user as $user){
+
+				$user['muted_userId'] = $this->db->select('users.name, users.username, users.image')->get_where('users', ['id' => $user['muted_userId']])->row_array();
+				$user['muted_userId']['image'] = base_url() . $user['muted_userId']['image'];
+
+				$final[] = $user;
+
+			}
+
+			if(empty($final)){
+				echo json_encode([
+					'status' => 0,
+					'message' => 'no data found'
+				]);exit;
+			}
+
+			echo json_encodE([
+				'status' => 1,
+				'message' => 'details found',
+				'details' => $final
+			]);exit;
+			
+		}else{
+			echo json_encode([
+				'status' => 0,
+				'message' => 'method  not allowed'
+			]);exit;
+		}
+	}
+
+
+
+
 
 
 

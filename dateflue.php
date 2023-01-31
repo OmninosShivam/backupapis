@@ -2866,8 +2866,8 @@ class DateFlue extends CI_Controller
 
 			// $appID = "0ebf0179ad5f47ef93f32cf7f6851e1b";
 			// $appCertificate = "0405943eabe04260acb48aedb6102605";
-			$appID = "31fffdc5a307424981001739c2058aff";
-			$appCertificate = "9505a67d7a5e4d73810774886ad0d290";
+			$appID = "cba3368e67374d4ebbe8ab082ae725be";
+			$appCertificate = "9e2335bfc56c434296a8133ff30cdc94";
 			$channelName = $this->input->post('channelName');
 			$uid = '';
 			$uidStr = '';
@@ -13955,74 +13955,30 @@ class DateFlue extends CI_Controller
 
 				$this->db->set('addProductCounts', 'addProductCounts +1', false)->where('id', $this->input->post('userId'))->update("users");
 
-				//   if (!empty($_FILES['image']['name'])) {
-				// 		$total = count(time().'_'.$_FILES["image"]["name"]);
-				// 		for ($i = 0; $i < $total; $i++) {
-				// 			$tmpFilePath = $_FILES['image']['tmp_name'][$i];
-				// 			if ($tmpFilePath != "") {
-
-				// 				$img_name = time().'_'.$_FILES["image"]["name"][$i];
-				// 				$name= str_replace(' ', '_', $img_name);
-				// 				$tmpFilePath = $_FILES['image']['tmp_name'][$i];
-				// 				$path = 'uploads/users/' . $name;
-
-				// 				move_uploaded_file($tmpFilePath, $path);
-				// 				$datas['image'] = $path;
-				// 				$datas['addProductId'] = $getId;
-				// 				$input = $this->db->insert('addProduct_images', $datas);
-				// 			}
-				// 		}
-				// 	}
-
-				// 	if (!empty($_FILES['image']['name'])) {
-				//     $total = count($_FILES['image']['name']);
-				//     for ($i = 0; $i < $total; $i++) {
-				//         $tmpFilePath = $_FILES['image']['tmp_name'][$i];
-				//         if ($tmpFilePath != "") {
-				//             // $img_name = $_FILES['image']['name'][$i];
-				//             // $tmpFilePath = $_FILES['image']['tmp_name'][$i];
-				//             // $path = 'uploads/prescription/' . $img_name;
-
-				//             $img_name = time().'_'.$_FILES["image"]["name"][$i];
-				// 				$name= str_replace(' ', '_', $img_name);
-				// 				$tmpFilePath = $_FILES['image']['tmp_name'][$i];
-				// 				$path = 'uploads/users/' . $name;
-
-				//             move_uploaded_file($tmpFilePath, $path);
-				//             $datas['image'] = $path;
-				//             $datas['addProductId'] = $getId;
-				//             $input = $this->db->insert('addProduct_images', $datas);
-				//         }
-				//     }
-				// }
-
 				$States = explode(',', $this->input->post("states"));
 
 				foreach ($States as $key => $val) {
+					$state = $this->db->get_where('states', ['id' => $val])->row_array();
 					$insert_data = [];
 					$insert_data[] = [
 						"ProductId"	=>	$getId,
-						"states"	=>	$val,
+						"states"	=>	$state['name'],
 					];
 
 					$ins = $this->db->insert_Batch("product_states", $insert_data);
 				}
 
 				if (!empty($_FILES['image']['name'])) {
-					$total = count($_FILES['image']['name']);
-					for ($i = 0; $i < $total; $i++) {
-						$orders[] = [
-							"image"    =>    $this->uploadVideo([
-								"name"    =>    $_FILES['image']["name"][$i],
-								"tmp_name"    =>    $_FILES['image']["tmp_name"][$i],
-							]),
-							'addProductId' => $getId,
+				    $total = count($_FILES['image']['name']);
+				    for ($i = 0; $i < $total; $i++) {
+						$img = [
+							'name' => $_FILES['image']['name'][$i],
+							'tmp_name' => $_FILES['image']['tmp_name'][$i]
 						];
-					}
-
-					if (!!$orders) {
-						$this->db->insert_batch('addProduct_images', $orders);
-					}
+						$datas['addProductId'] = $getId;
+						$datas['image'] = $this->uploadVideo($img);
+						$input = $this->db->insert('addProduct_images', $datas);
+				    }
 				}
 				echo json_encode([
 
@@ -16814,21 +16770,17 @@ class DateFlue extends CI_Controller
 	{
 		if ($this->input->post()) {
 
-			$getlat = $this->input->post('latitude');
-			$getlong = $this->input->post('longitude');
+			// $getlat = $this->input->post('latitude');
+			// $getlong = $this->input->post('longitude');
 			$ID = $this->input->post('userId');
-			$gethospital = $this->db->select("users.*, (6731 * acos( cos( radians($getlat) ) * cos( radians( users.latitude ) ) * cos( radians(users.longitude ) - radians($getlong) ) + sin( radians($getlat) ) * sin(radians(users.latitude)) ) ) AS distance")
+			// $gethospital = $this->db->select("users.*, (6731 * acos( cos( radians($getlat) ) * cos( radians( users.latitude ) ) * cos( radians(users.longitude ) - radians($getlong) ) + sin( radians($getlat) ) * sin(radians(users.latitude)) ) ) AS distance")
+			$gethospital = $this->db->select("users.*")
 				->from("users")
 				->where("users.latitude !=", '')
 				->where("users.longitude !=", '')
-
-				// ->where("users.userSwipeID !=",$ID)
-				// ->where("users.superLikeToId !=",$ID)
-				// ->where("users.blockerBy !=",$ID)
-				// ->where("users.blockUser !=","1")
 				->where("users.id !=", $ID)
-				->having("distance <", 10)
-				->order_by("distance", "ASC")
+				// ->having("distance <", 10)
+				// ->order_by("distance", "ASC")
 				->get()
 				->result_array();
 
@@ -17075,6 +17027,75 @@ class DateFlue extends CI_Controller
 			exit;
 		}
 	}
+
+	public function get_live_user_token(){
+		if($_SERVER['REQUEST_METHOD'] === 'POST'){
+
+			$user = $this->db->get_where('users', ['id' => $this->input->post('userId')])->row_array();
+			if(empty($user)){
+				echo json_encode([
+					'status' =>  0,
+					'message' => 'invalid userId'
+				]);exit;
+			}
+
+			$users = $this->db->get('users')->result_array();
+
+			$final = [];
+
+			foreach($users as $userr){
+
+				if($user['id'] == $userr['id']){
+
+				}else{
+
+					$get = $this->db->select('userLive.status userstatus, userLive.*, users.*')
+									->from('userLive')
+									->join('users', 'users.id = userLive.userId', 'left')
+									->where('userId', $userr['id'])
+									->order_by('userLive.id', 'desc')
+									->get()->row_array();
+
+									$get['followstatus'] = false;
+									$follow = $this->db->get_where('userFollow', ['userId' => $userr['id'], 'followingUserId' => $user['id'], 'status' => '1'])->row_array();
+									if(!!$follow){
+										$get['followstatus'] = true;
+									}
+
+									$followers = $this->db->get_where('userFollow', ['userId' => $userr['id'], 'status', '1'])->num_rows();
+									$get['followerCount'] = $followers;
+
+									if($get['userstatus'] == 'live'){
+										$final[] = $get;
+									}
+				}
+
+			}
+
+			if(empty($final)){
+				echo json_encode([
+					'status' => 0,
+					'message' => 'no data found'
+				]);exit;
+			}
+
+			echo json_encode([
+				'status' => 1,
+				'message' => 'list found',
+				'details' => $final
+			]);exit;
+
+
+
+			
+		}else{
+			echo json_encode([
+				'status' =>  0,
+				'message' => 'method not allowed'
+			]);exit;
+		}
+	}
+
 
 	public function getCountryStates()
 	{
