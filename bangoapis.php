@@ -15,6 +15,8 @@ class Bango extends CI_Controller
 		$this->load->model('api/Common_Model');
 		$this->load->model('api/User_model');
 		date_default_timezone_set('Asia/Kolkata');
+
+		// print_r($this->input->post());exit;
 	}
 
 	public function getCountryFlags()
@@ -1371,11 +1373,11 @@ class Bango extends CI_Controller
 			} else if ($str < 200000) {
 				$strStatus = '2';
 			} else if ($str < 1000000) {
-				$strStatus = "Rising";
+				$strStatus = "3";
 			} else if ($str < 2000000) {
-				$strStatus = "Big";
+				$strStatus = "4";
 			} else {
-				$strStatus = "Super";
+				$strStatus = "5";
 			}
 
 
@@ -4544,6 +4546,13 @@ class Bango extends CI_Controller
 				if (!!$checkData) {
 
 					if (!!$checkData['vipLevel']) {
+
+						if($checkData['userBanStatus'] == 1){
+							echo json_encode([
+								'success' => '0',
+								'message' => 'This user has been blocked'
+							]);exit;
+						}
 
 						$idd = $checkData['vipLevel'];
 
@@ -11849,6 +11858,12 @@ class Bango extends CI_Controller
 		if ($this->input->post()) {
 			$checkSocialId = $this->db->get_where('users', ['social_id' => $this->input->post('socialId')])->row_array();
 			if (!empty($checkSocialId)) {
+				if($checkSocialId['userBanStatus'] == 1){
+					echo json_encode([
+						'success' => '0',
+						'message' => 'This user has been blocked'
+					]);exit;
+				}
 				$data['social_id'] = $this->input->post('socialId');
 				$data['reg_id'] = $this->input->post('reg_id');
 				$data['deviceId'] = $this->input->post('device_id');
@@ -17058,34 +17073,49 @@ class Bango extends CI_Controller
 
 			$stripe = $this->secretToken();
 
-			$charge = $stripe->paymentIntents->create([
+			$charge = $stripe->charges->create([
 				'customer' => $checkCustomerId['customerId'],
 				'amount' => $checkOrderId['coinsPrice'],
 				'currency' => 'usd',
 				'description' => 'coins',
-				'automatic_payment_methods' => [
-					'enabled' => true,
-				],
+				// 'automatic_payment_methods' => [
+				// 	'enabled' => true,
+				// ],
 				'metadata' => array(
 					'order_id' => $checkOrderId['orderId']
 				)
 			]);
 
-			$data['paymentId'] = $charge->id;
-			$data['customerId'] = $charge->customer;
-			$data['paymentCreated'] = date('Y-m-d h:i:s');
-			$data['status'] = '1';
+			if($charge['amount_captured'] == $checkOrderId['coinsPrice']){
 
-			$userCoins['purchasedCoin'] += $checkOrderId['coinsAmount'];
+				$data['paymentId'] = $charge->id;
+				$data['customerId'] = $charge->customer;
+				$data['paymentCreated'] = date('Y-m-d h:i:s');
+				$data['status'] = '1';
+	
+				$userCoins['purchasedCoin'] += $checkOrderId['coinsAmount'];
+	
+				$this->db->set($data)->where('orderId', $this->input->post('orderId'))->update('orderDetails');
+				$this->db->set($userCoins)->where('id', $checkCustomerId['userId'])->update('users');
+	
+				echo json_encode([
+					'status' => 1,
+					'message' => 'order completed'
+				]);
+				exit;
 
-			$this->db->set($data)->where('orderId', $this->input->post('orderId'))->update('orderDetails');
-			$this->db->set($userCoins)->where('id', $checkCustomerId['userId'])->update('users');
+			}else{
+				echo json_encode([
+					'status' => 0,
+					'message' => 'payment failed'
+				]);exit;
+			}
 
-			echo json_encode([
-				'status' => 1,
-				'message' => 'order completed'
-			]);
-			exit;
+			print_r($charge['amount_captured']);exit;
+
+			print_r($charge);exit;
+
+
 		} catch (exception $e) {
 			echo json_encode([
 				'status' => 0,
@@ -17791,22 +17821,77 @@ class Bango extends CI_Controller
 
 	public function imageOnEntry()
 	{
-		$get = $this->db->order_by('id', 'desc')->get('imageOnEntry')->row_array();
+		if($_SERVER['REQUEST_METHOD'] === 'POST'){
 
-		if (empty($get)) {
+			if(!$this->input->post('deviceId')){
+				echo json_encoede([
+					'status' => 0,
+					'message' => 'deviceId required'
+				]);exit;
+			}
+
+			if(!$this->input->post('userId')){
+				echo json_encoede([
+					'status' => 0,
+					'message' => 'userId required'
+				]);exit;
+			}
+
+			if($this->input->post('userId') == '0'){
+
+				$check_block['userBanStatus'] == '0';
+
+			}else{
+
+				$check_block = $this->db->get_where('users', ['id' => $this->input->post('userId')])->row_array();
+				if(empty($check_block)){
+					echo json_encode([
+						'status' => 0,
+						'message' => 'invalid userId'
+					]);exit;
+				}
+
+			}
+
+
+			if($check_block['userBanStatus'] == '1'){
+				echo json_encode([
+					'status' => 0,
+					'message' => 'This user has been blocked. ~BangoAdmin'
+				]);exit;
+			}
+
+			$check = $this->db->get_where('blockDeviceId', ['deviceId' => $this->input->post('deviceId')])->row_array();
+			if(!!$check){
+				echo json_encode([
+					'status' => 0,
+					'message' => 'Your device has been blocked. ~BangoAdmin'
+				]);exit;
+			}
+
+			$get = $this->db->order_by('id', 'desc')->get('imageOnEntry')->row_array();
+
+			if (empty($get)) {
+				echo json_encode([
+					'status' => 0,
+					'message' => 'No new entry effect'
+				]);
+				exit;
+			}
+	
 			echo json_encode([
-				'status' => 0,
-				'message' => 'No new entry effect'
+				'status' => 1,
+				'message' => 'entry effects',
+				'details' => $get
 			]);
 			exit;
+			
+		}else{
+			echo json_encodE([
+				'status' => 0,
+				'message' => 'method not allowed'
+			]);exit;
 		}
-
-		echo json_encode([
-			'status' => 1,
-			'message' => 'entry effects',
-			'details' => $get
-		]);
-		exit;
 	}
 
 
@@ -18036,11 +18121,11 @@ class Bango extends CI_Controller
 			} else if ($str < 200000) {
 				$strStatus = '2';
 			} else if ($str < 1000000) {
-				$strStatus = "Rising";
+				$strStatus = "3";
 			} else if ($str < 2000000) {
-				$strStatus = "Big";
+				$strStatus = "4";
 			} else {
-				$strStatus = "Super";
+				$strStatus = "5";
 			}
 
 

@@ -1492,6 +1492,8 @@ class DateFlue extends CI_Controller
 		}
 	}
 
+	// public function get_highest_pk_battle_winner()
+
 	public function getPkBattle()
 	{
 
@@ -1724,6 +1726,14 @@ class DateFlue extends CI_Controller
 				'message' => 'Invalid otherLiveId'
 			]);
 			exit;
+		}
+
+		$pkOn = $this->db->get_where('pkbattle', ['userId' => $this->input->post('userId'), 'otherUserLiveId' => $this->input->post('otherUserId'), 'battleStatus' => 'live'])->row_array();
+		if(!!$pkOn){
+			echo json_encode([
+				'success' => 0,
+				'message' => 'pk battle already hit'
+			]);exit;
 		}
 
 		$host['hostType'] = 2;
@@ -9082,10 +9092,10 @@ class DateFlue extends CI_Controller
 		$data['status'] = 'archived';
 		$data['archivedDate'] = date('Y-m-d H:i:s');
 
-		$insData['userId'] = $this->input->post('id');
-		$insData['startLimit'] = $data['status'];
-		$insData['country'] = $data['archivedDate'];
-		$this->db->insert('testing', $insData);
+		// $insData['userId'] = $this->input->post('id');
+		// $insData['startLimit'] = $data['status'];
+		// $insData['country'] = $data['archivedDate'];
+		// $this->db->insert('testing', $insData);
 
 
 		$this->Common_Model->update('userLive', $data, 'id', $this->input->post('id'));
@@ -17049,7 +17059,7 @@ class DateFlue extends CI_Controller
 
 				}else{
 
-					$get = $this->db->select('userLive.status userstatus, userLive.*, users.*')
+					$get = $this->db->select('userLive.createdDate, userLive.status userstatus, userLive.*, users.*')
 									->from('userLive')
 									->join('users', 'users.id = userLive.userId', 'left')
 									->where('userId', $userr['id'])
@@ -17079,6 +17089,7 @@ class DateFlue extends CI_Controller
 				]);exit;
 			}
 
+			rsort($final);
 			echo json_encode([
 				'status' => 1,
 				'message' => 'list found',
@@ -17361,7 +17372,7 @@ class DateFlue extends CI_Controller
 				$api = new Api('rzp_test_l0iCxNFrSqR4nG', 'SoVLw255d1MwZ2ugsrKEI8F9');
 
 				$orderData = [
-					'amount' => $amount,
+					'amount' => $amount * 100,
 					'currency' => 'INR',
 					'payment_capture' => 1
 				];
@@ -18253,3 +18264,4 @@ class DateFlue extends CI_Controller
 
 
 }
+

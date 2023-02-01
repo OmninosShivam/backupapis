@@ -17476,11 +17476,11 @@ class Vito extends CI_Controller
 				]);exit;
 			}
 
-			$family = $this->db->get_where('family', ['id' => $user['familyId']])->row_array();
+			$family = $this->db->select('family.id family_id, family.userId admin_id, familyName, familyDescription, familyImage')->get_where('family', ['id' => $user['familyId']])->row_array();
 			$family['members'] = $this->db->select('users.id, users.name, users.username, users.image, familyMembers.*')
 											  ->from('familyMembers')
 											  ->join('users', 'users.id = familyMembers.userId', 'left')
-											  ->where('familyId', $family['id'])
+											  ->where('familyId', $family['family_id'])
 											  ->where('familyMembers.status', '1')
 											  ->get()->result_array();
 
@@ -17871,7 +17871,7 @@ class Vito extends CI_Controller
 			}
 
 			// checking requests
-			$requests = $this->db->select('from_user_to_family_invitation.id request_id, from_user_to_family_invitation.userId, from_user_to_family_invitation.date')->get_where('from_user_to_family_invitation', ['familyId' => $leader['id']])->result_array();
+			$requests = $this->db->select('from_user_to_family_invitation.id request_id, from_user_to_family_invitation.userId userdetails, from_user_to_family_invitation.date')->get_where('from_user_to_family_invitation', ['familyId' => $leader['id']])->result_array();
 			if (empty($requests)) {
 				echo json_encode([
 					'status' => 0,
@@ -17883,7 +17883,7 @@ class Vito extends CI_Controller
 			// getting user details
 			$final = [];
 			foreach ($requests as $request) {
-				$request['userId'] = $this->db->select('id, username, name, image')->get_where('users', ['id' => $request['userId']])->row_array();
+				$request['userdetails'] = $this->db->select('id, username, name, image')->get_where('users', ['id' => $request['userdetails']])->row_array();
 
 				$final[] = $request;
 			}
@@ -17900,7 +17900,7 @@ class Vito extends CI_Controller
 				echo json_encode([
 					'status' => 1,
 					'message' => 'details found',
-					'details' => $final
+					'detail' => $final
 				]);
 				exit;
 			}
@@ -18125,6 +18125,96 @@ class Vito extends CI_Controller
 			]);exit;
 		}
 	}
+
+
+	public function remove_member(){
+		if($_SERVER['REQUEST_METHOD'] === 'POST'){
+
+			parameters_required(['leaderId', 'userId']);
+
+			$leader = $this->db->get_where('family', ['userId' => $this->input->post('leaderId')])->row_array();
+			if(empty($leader)){
+				echo json_encode([
+					'status' => 0,
+					'message' => 'invalid leaderId'
+				]);exit;
+			}
+
+			$user = $this->db->get_where('users', ['id' => $this->input->post('userId')])->row_array();
+			if(empty($user)){
+				echo json_encode([
+					'status' => 0,
+					'message' => 'invalid userId'
+				]);exit;
+			}
+
+			$member = $this->db->get_where('familyMembers', ['userId' => $user['id'], 'familyId' => $leader['id'], 'status' => '1'])->row_array();
+			if(empty($member)){
+				echo json_encode([
+					'status' => 0,
+					'message' => 'userId not a member'
+				]);exit;
+			}
+
+			$this->db->delete('familyMembers', ['id' => $member['id']]);
+			echo json_encode([
+				'status' => 1,
+				'message' => 'member removed'
+			]);exit;
+
+		}else{
+			echo json_encode([
+				'status' => 0,
+				'message' => 'method not allowed'
+			]);exit;
+		}
+	}
+
+
+	public function leave_family(){
+		if($_SERVER['REQUEST_METHOD'] === 'POST'){
+
+			parameters_required(['userId']);
+
+			$user = $this->db->get_where('users', ['id' => $this->input->post('userId')])->row_array();
+			if(empty($user)){
+				echo json_encode([
+					'status' => 0,
+					'message' => 'invalid userId'
+				]);exit;
+			}
+
+			$member = $this->db->get_where('familyMembers', ['userId' => $user['id'], 'status' => '1'])->row_array();
+			if(empty($member)){
+				echo json_encode([
+					'status' => 0,
+					'message' => 'user not a member'
+				]);exit;
+			}
+			
+			if($member['position'] == '1'){
+				echo json_encode([
+					'status' => 0,
+					'message' => 'you are a leader, delete family'
+				]);exit;
+			}
+
+			$this->db->delete('familyMembers', ['id' => $member['id']]);
+			echo json_encode([
+				'status' => 1,
+				'message' => 'family left'
+			]);exit;
+			
+
+		}else{
+			echo json_encode([
+				'status' => 0,
+				'message' => 'method not allowed'
+			]);exit;
+		}
+	}
+
+
 
 
 
