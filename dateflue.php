@@ -5384,6 +5384,12 @@ class DateFlue extends CI_Controller
 					$message['message'] = 'Invalid OTP, Please enter valid OTP';
 				}
 			} else {
+				if(!$this->input->post('city')){
+					echo json_encode([
+						'success' => '0',
+						'message' => 'city required'
+					]);exit;
+				}
 				$data['deviceId'] = $this->input->post('deviceId') ?? "";
 				$data['phone'] = $this->input->post('phone');
 				$data['reg_id'] = $this->input->post('reg_id') ?? "";
@@ -5400,6 +5406,7 @@ class DateFlue extends CI_Controller
 				$data['login_type'] = 'normal';
 				$data['onlineStatus'] = 1;
 				$data['status'] = 'Approved';
+				$data['city'] = $this->input->post('city');
 				$data['created'] = date('Y-m-d H:i:s');
 				$upload = $this->db->insert("users", $data);
 				$insert_id = $this->db->insert_id();
@@ -8940,11 +8947,22 @@ class DateFlue extends CI_Controller
 					$lists['followStatus'] = '0';
 				}
 
-				$message['details'][] = $lists;
+				$check_block = $this->db->get_where('blockUser', ['userId' => $this->input->post('userId'), 'blockUserId' => $lists['userId']])->row_array();
+				if(empty($check_block)){
+
+					$message['details'][] = $lists;
+				}
+
 			}
 		} else {
 			$message['success'] = '0';
 			$message['message'] = 'No List found';
+		}
+		if(empty($message['details'])){
+			echo json_encode([
+				'success' => '0',
+				'message' => 'no list found'
+			]);exit;
 		}
 		echo json_encode($message);
 	}
@@ -12488,6 +12506,7 @@ class DateFlue extends CI_Controller
 				$data['latitude'] = $this->input->post('latitude');
 				$data['longitude'] = $this->input->post('longitude');
 				$data['name'] = $this->input->post('name');
+				$data['city'] = $this->input->post('city');
 				$data['email'] = $this->input->post('email');
 				$data['registerType'] = 'Social';
 				$update = $this->db->update('users', $data, ['social_id' => $this->input->post('socialId')]);
@@ -14077,6 +14096,14 @@ class DateFlue extends CI_Controller
 					->where("addProduct_images.addProductId", $getId)
 					->get()
 					->result_array();
+
+					$productStates = $this->db->get_where('product_states', ['ProductId' => $hosid[$key]["id"]])->result_array();
+					if(empty($productStates)){
+						$hosid[$key]["states"] = [];
+					}else{
+						$hosid[$key]["states"] = $productStates;
+
+					}
 			}
 
 
@@ -14851,7 +14878,116 @@ class DateFlue extends CI_Controller
 	// 	}
 
 
-	// }  
+	// } 
+	
+	protected function get_likes($userId){
+		$connections = [];
+
+		$likes = [];
+		$my_likes = $this->db->get_where('likeDislikeUser', ['userId' => $userId, 'likeDislike_type' => 'like'])->result_array();
+		if(!!$my_likes){
+
+			foreach($my_likes as $like){
+				$get = $this->db->select('userId otherUserIds, likeDislike_type')->get_where('likeDislikeUser', ['userId' => $like['otherUserId'], 'otherUserId' => $userId])->row_array();
+
+				if(!!$get){
+					$likes[] = $get;
+				}
+			}
+		}
+
+
+		$superlikes = [];
+		$userIds = [];
+		$otherUser = [];
+		$my_superlike = $this->db->select('otherUserId otherUserIds, likeDislike_type')->get_where('likeDislikeUser', ['userId' => $userId, 'likeDislike_type' => 'superlike'])->result_array();
+		if(!!$my_superlike){
+			
+			foreach($my_superlike as $superlike){
+				$userIds[] = $superlike;
+			}
+		}
+
+		$getSuperlike = $this->db->select('userId otherUserIds, likeDislike_type')->get_where('likeDislikeUser', ['otherUserId' => $userId, 'likeDislike_type' => 'superlike'])->result_array();
+		if(!!$getSuperlike){
+			foreach($getSuperlike as $superlikes){
+				// print_r($getSuperlike);exit;
+				$otherUser[] = $superlikes;
+			}
+		}
+
+		$ar = array_merge($likes, $userIds, $otherUser);
+
+		return $ar;
+	}
+
+	public function check_like_status(){
+
+		if($_SERVER['REQUEST_METHOD'] === 'POST'){
+			if(!$this->input->post('userId')){
+				echo json_encode([
+					'success' =>  '0',
+					'message' => 'userId required'
+				]);exit;
+			}
+
+			$user = $this->db->get_where('users', ['id' => $this->input->post('userId')])->row_array();
+			if(empty($user)){
+				echo json_encode([
+					'success' => '0',
+					'message' => 'invalid userId'
+				]);exit;
+			}
+
+
+			$likes = $this->get_likes($user['id']);
+
+			if(empty($likes)){
+				echo json_encode([
+					'success' => '0',
+					'message' => 'no connections found'
+				]);exit;
+			}else{
+				// print_r($likes);exit;
+				$final = [];
+				foreach($likes as $like){
+					$like['userinfo'] = $this->db->select('username, name, image, backgroundImage')->get_where('users', ['id' => $like['otherUserIds']])->row_array();
+					$like['product_count'] = $this->db->get_where('addProducts', ['userId' => $like['otherUserIds']])->num_rows();
+
+					$connection_count = $this->get_likes($like['otherUserIds']);
+					if(empty($connection_count)){
+						$like['connection_count'] = 0;
+					}else{
+						$like['connection_count'] = count($connection_count);
+					}
+
+					$like['video_count'] = $this->db->get_where('userVideos', ['userId' => $like['otherUserIds']])->num_rows();
+
+					$final[] = $like;
+				}
+			}
+
+			if(empty($final)){
+				echo json_encode([
+					'success' =>  '0',
+					'message' => 'no data found'
+				]);exit;
+			}
+
+				echo json_encode([
+					'success' =>  '1',
+					'message' => 'data found',
+					'details' => $final
+				]);exit;
+			
+			
+		}else{
+			echo json_encode([
+				'success' => '0',
+				'message' => 'method not allowed0'
+			]);exit;
+		}
+	}
 
 
 	public function checkLikeStatus()
@@ -15031,11 +15167,16 @@ class DateFlue extends CI_Controller
 				//   }
 			}
 			if (!!$final || !!$array || !!$arrayy) {
+				$last = array_merge($final, $array, $arrayy);
+
+				$connections_count = count($last);
+
 				echo json_encode([
 
 					"success" => "1",
 					"message" => "details found",
-					"details" => array_merge($final, $array, $arrayy)
+					"connection_count" => $connections_count,
+					"details" => $last
 				]);
 				exit;
 			} else {
@@ -16076,22 +16217,8 @@ class DateFlue extends CI_Controller
 
 				if ($this->db->insert('blockUser', $data)) {
 
-					$getId = $this->db->insert_id();
-
-
-					$getDetails = $this->db->get_where("blockUser", ["id" => $getId])->row_array();
-
-					$blockUser['blockUser'] = '1';
-
-					$this->db->update("users", $blockUser, ['id' => $this->input->post('blockUserId')]);
-
-					$blockerBy = $getDetails['userId'];
-					$blockerTo = $getDetails['blockUserId'];
-
-					$block['blockerBy'] = $blockerBy;
-					$block['blockerTo'] = $blockerTo;
-
-					$this->db->update("users", $block, ['id' => $blockerTo]);
+					$this->db->delete('likeDislikeUser', ['userId' => $checkBlocker['id'], 'otherUserId' => $checkBlockerTo['id']]);
+					$this->db->delete('likeDislikeUser', ['userId' => $checkBlockerTo['id'], 'otherUserId' => $checkBlocker['id']]);
 
 					echo json_encode([
 						'success' => '1',
@@ -16402,10 +16529,13 @@ class DateFlue extends CI_Controller
 			$message['message'] = 'List Found Successfully';
 			foreach ($list as $lists) {
 
+				$get = $this->db->get_where('users', ['id' => $lists['userId']])->row_array();
+				// print_r($get);exit;
+
 				if (!empty($lists['name'])) {
-					$lists['username'] = $lists['name'];
+					$lists['username'] = $get['name'];
 				} else {
-					$lists['username'] = $lists['username'];
+					$lists['username'] = $get['username'];
 				}
 				if (!empty($lists['downloadPath'])) {
 					$lists['downloadPath'] = $lists['downloadPath'];
@@ -16413,9 +16543,14 @@ class DateFlue extends CI_Controller
 					$lists['downloadPath'] =  '';
 				}
 				if (!empty($lists['image'])) {
-					$lists['image'] = $lists['image'];
-				} else {
 					$lists['image'] = "";
+				} else {
+					$lists['image'] = $get['image'];
+				}
+				if (!empty($lists['backgroundImage'])) {
+					$lists['backgroundImage'] = "";
+				} else {
+					$lists['backgroundImage'] = $get['backgroundImage'];
 				}
 				if (!empty($lists['hashtag'])) {
 					$lists['hashtagTitle'] = $this->hashTagName($lists['hashtag']);
@@ -16447,84 +16582,17 @@ class DateFlue extends CI_Controller
 
 				// Get user's connection counts.
 
-				$checkStatus = $this->db->get_where("likeDislikeUser", ['userId' => $lists['userId'], 'likeDislike_type' => 'like'])->result_array();
+				$connection_count = $this->get_likes($userId);
+				if(empty($connection_count)){
 
-				$checkSuperLike = $this->db->get_where("likeDislikeUser", ['userId' => $lists['userId'], 'likeDislike_type' => 'superlike'])->result_array();
+					$lists['connectionCounts'] = 0;
+				}else{
 
-				$checkSuperLikeReverse = $this->db->get_where("likeDislikeUser", ['otherUserId' => $lists['userId'], 'likeDislike_type' => 'superlike'])->result_array();
-
-				$finall = [];
-
-				foreach ($checkStatus as $getss) {
-
-					$getiD = $getss['otherUserId'];
-					$getuiD = $getss['userId'];
-
-					$getOtherUser = $this->db->select("likeDislikeUser.id likeDislikeUserId")
-						->from("likeDislikeUser")
-						->where("likeDislikeUser.userId", $getiD)
-						->where("likeDislikeUser.otherUserId", $getuiD)
-						->where("likeDislikeUser.likeDislike_type", "like")
-						->get()
-						->num_rows();
-
-
-					if (!empty($getOtherUser)) {
-
-						$getss['connect_counts'] = $getOtherUser;
-
-						$finall[] = $getss;
-					}
+					$lists['connectionCounts'] = count($connection_count);
 				}
 
-				$FinalSuper = [];
 
-				foreach ($checkSuperLike as $getsss) {
 
-					$getiD = $getsss['otherUserId'];
-					$getuiD = $getsss['userId'];
-
-					$getOtherUserr = $this->db->select("likeDislikeUser.id likeDislikeUserId")
-						->from("likeDislikeUser")
-						->where("likeDislikeUser.userId", $getuiD)
-						->where("likeDislikeUser.likeDislike_type", "superlike")
-						->get()
-						->num_rows();
-
-					if (!!$getOtherUserr) {
-
-						$getsss['connect_countss'] = $getOtherUserr;
-
-						$FinalSuper[] = $getsss;
-					}
-				}
-
-				$FinalSuperReverse = [];
-
-				foreach ($checkSuperLikeReverse as $getSuper) {
-
-					$getiD = $getSuper['otherUserId'];
-					$getuiD = $getSuper['userId'];
-
-					$getOtherUse = $this->db->select("likeDislikeUser.id likeDislikeUserId")
-						->from("likeDislikeUser")
-						->where("likeDislikeUser.otherUserId", $getiD)
-						->where("likeDislikeUser.likeDislike_type", "superlike")
-						->get()
-						->num_rows();
-
-					if (!empty($getOtherUse)) {
-
-						$getSuper['connect_countss'] = $getOtherUse;
-
-						$FinalSuperReverse[] = $getSuper;
-					}
-				}
-				$c = (string)count($finall);
-				$s = (string)count($FinalSuper);
-				$sr = (string)count($FinalSuperReverse);
-
-				$lists['connectionCounts'] = $c + $s + $sr;
 
 				//GET connection status
 
@@ -16571,6 +16639,9 @@ class DateFlue extends CI_Controller
 				} else {
 					$lists['Like_connection_status'] = false;
 				}
+
+				$lists['video_count'] = $this->db->get_where('userVideos', ['userId' => $lists['userId']])->num_rows();
+				$lists['product_count'] = $this->db->get_where('addProducts', ['userId' => $lists['userId']])->num_rows();
 
 				$message['details'][] = $lists;
 			}
@@ -16802,6 +16873,8 @@ class DateFlue extends CI_Controller
 				foreach ($gethospital as $chil) {
 
 					$get = $chil['id'];
+
+					
 
 					// GET CONNECTION COUNTS START //
 
@@ -17076,7 +17149,13 @@ class DateFlue extends CI_Controller
 									$get['followerCount'] = $followers;
 
 									if($get['userstatus'] == 'live'){
-										$final[] = $get;
+
+										$check_block = $this->db->get_where('blockUser', ['userId' => $user['id'], 'blockUserId' => $userr['id']])->row_array();
+										if(empty($check_block)){
+
+											$final[] = $get;
+										}
+
 									}
 				}
 

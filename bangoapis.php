@@ -17309,12 +17309,12 @@ class Bango extends CI_Controller
 
 			$coinss = $data['purchasedCoin'];
 
-			$user['amount'] += $user['amount'];
+			$user['amount'] *= 2.9;
 			// print_r($data);echo "..";
 			// print_r($user['amount']);echo"...";
 
 
-			$data['purchasedCoin'] += (80 / 100) * $user['amount'];
+			$data['purchasedCoin'] += $user['amount'];
 			// print_r($data);echo "..";
 
 			$this->db->set($data)->where('id', $user['userId'])->update('users');
@@ -17336,7 +17336,7 @@ class Bango extends CI_Controller
 			// }
 
 			$data['purchasedCoin'] = $coinss;
-			$data['winamount'] = (80 / 100) * $user['amount'];
+			$data['winamount'] = $user['amount'];
 			$data['mypcoins'] = $get['purchasedCoin'];
 			$data['winnerPlot'] = $plot['plot'];
 			$data['slotId'] = $plot['id'];
