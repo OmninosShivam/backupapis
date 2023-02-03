@@ -14963,7 +14963,14 @@ class DateFlue extends CI_Controller
 
 					$like['video_count'] = $this->db->get_where('userVideos', ['userId' => $like['otherUserIds']])->num_rows();
 
-					$final[] = $like;
+					$check_block = $this->db->get_where('blockUser', ['userId' =>  $user['id'], 'blockUserId' => $like['otherUserIds']])->row_array();
+					if(!!$check_block){
+
+					}else{
+						
+						$final[] = $like;
+					}
+
 				}
 			}
 

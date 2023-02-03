@@ -17314,7 +17314,7 @@ class Bango extends CI_Controller
 			// print_r($user['amount']);echo"...";
 
 
-			$data['purchasedCoin'] += $user['amount'];
+			$data['purchasedCoin'] += (70 / 100) * $user['amount'];
 			// print_r($data);echo "..";
 
 			$this->db->set($data)->where('id', $user['userId'])->update('users');
@@ -17336,7 +17336,7 @@ class Bango extends CI_Controller
 			// }
 
 			$data['purchasedCoin'] = $coinss;
-			$data['winamount'] = $user['amount'];
+			$data['winamount'] = (70 / 100) * $user['amount'];
 			$data['mypcoins'] = $get['purchasedCoin'];
 			$data['winnerPlot'] = $plot['plot'];
 			$data['slotId'] = $plot['id'];
@@ -17824,18 +17824,18 @@ class Bango extends CI_Controller
 		if($_SERVER['REQUEST_METHOD'] === 'POST'){
 
 			if(!$this->input->post('deviceId')){
-				echo json_encoede([
+				echo json_encode([
 					'status' => 0,
 					'message' => 'deviceId required'
 				]);exit;
 			}
 
-			if(!$this->input->post('userId')){
-				echo json_encoede([
-					'status' => 0,
-					'message' => 'userId required'
-				]);exit;
-			}
+			// if(!$this->input->post('userId')){
+			// 	echo json_encode([
+			// 		'status' => 0,
+			// 		'message' => 'userId required'
+			// 	]);exit;
+			// }
 
 			if($this->input->post('userId') == '0'){
 
@@ -17887,7 +17887,7 @@ class Bango extends CI_Controller
 			exit;
 			
 		}else{
-			echo json_encodE([
+			echo json_encode([
 				'status' => 0,
 				'message' => 'method not allowed'
 			]);exit;
