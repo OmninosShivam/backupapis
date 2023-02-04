@@ -1257,11 +1257,12 @@ class Bango extends CI_Controller
 	{
 		if ($this->input->post()) {
 
-			if($this->input->post('userId') == $this->input->post('giftUserId')){
+			if ($this->input->post('userId') == $this->input->post('giftUserId')) {
 				echo json_encode([
 					'status' => 0,
 					'message' => 'you can not send gift to yourself'
-				]);exit;
+				]);
+				exit;
 			}
 
 			$data['userId'] = $this->input->post('userId');
@@ -1278,6 +1279,8 @@ class Bango extends CI_Controller
 				$data['liveId'] = $this->input->post('liveId');
 
 				$live = $this->db->get_where('userLive', ['id' => $data['liveId']])->row_array();
+
+				$data['type'] = $live['hostType'];
 			}
 			if (!empty($this->input->post('pkId'))) {
 				$data['pkId'] = $this->input->post('pkId');
@@ -1292,9 +1295,9 @@ class Bango extends CI_Controller
 				->get()->row_array();
 
 			// check balance
-			$senderCoins = $senderDetails['purchasedCoin'];
+			$senderCoins = $senderDetails['purchasedCoin'] ?: 0;
 
-			$totalSendCoins = $senderDetails['total_send_coin'];
+			$totalSendCoins = $senderDetails['total_send_coin'] ?: 0;
 
 			if ($senderCoins < $data['coin']) {
 				echo json_encode([
@@ -1335,10 +1338,11 @@ class Bango extends CI_Controller
 				->where('id', $this->input->post('giftUserId'))
 				->get()->row_array();
 
-			$recieverMonthlyCoin = $recieverDetails['monthlyCoins'];
-			$recieverCoin = $recieverDetails['coin'];
+			$recieverMonthlyCoin = $recieverDetails['monthlyCoins'] ?: 0;
+			$recieverCoin = $recieverDetails['coin'] ?: 0;
 
 			$recieverMonthlyCoin += $data['coin'];
+			// print_r($recieverCoin);echo "....";print_r($data['coin']);exit;
 			$recieverCoin += $data['coin'];
 
 			$talentLevel = $this->db->get('user_talent_levels')->result_array();
@@ -1399,7 +1403,7 @@ class Bango extends CI_Controller
 
 
 
-			$outMess['myStar'] =  ''.(int)$countStar['coin'].'';
+			$outMess['myStar'] =  '' . (int)$countStar['coin'] . '';
 			$outMess['coinsRecieved'] = $recieveCoins['coin'];
 			$outMess['liveStar'] =  '0';
 			$outMess['liveBox'] =  '0';
@@ -4547,11 +4551,12 @@ class Bango extends CI_Controller
 
 					if (!!$checkData['vipLevel']) {
 
-						if($checkData['userBanStatus'] == 1){
+						if ($checkData['userBanStatus'] == 1) {
 							echo json_encode([
 								'success' => '0',
 								'message' => 'This user has been blocked'
-							]);exit;
+							]);
+							exit;
 						}
 
 						$idd = $checkData['vipLevel'];
@@ -4601,14 +4606,15 @@ class Bango extends CI_Controller
 					$message['success'] = '0';
 					$message['message'] = 'Invalid OTP, Please enter valid OTP';
 				}
-			} else if(!!$checkOtp && $checkOtp['register'] == '0') {
+			} else if (!!$checkOtp && $checkOtp['register'] == '0') {
 
 				$check_otp_to_register = $this->db->get_where('users', ['phone' => $phone, 'loginOtp' => $otp])->row_array();
-				if(empty($check_otp_to_register)){
+				if (empty($check_otp_to_register)) {
 					echo json_encode([
 						'success' => '0',
 						'message' => 'invalid OTP to register'
-					]);exit;
+					]);
+					exit;
 				}
 
 				// $getUserName = $this->db->select('username')->from('users')->order_by('id', 'desc')->get()->row_array();
@@ -4654,11 +4660,12 @@ class Bango extends CI_Controller
 					$message['success'] = '0';
 					$message['message'] = 'Something went wrong!';
 				}
-			}else{
+			} else {
 				echo json_encode([
 					'success' => '0',
 					'message' => 'cannot login or register without otp'
-				]);exit;
+				]);
+				exit;
 			}
 		} else {
 			$message['success'] = '0';
@@ -7928,7 +7935,7 @@ class Bango extends CI_Controller
 			$message['message'] = 'please logout and login again';
 		} else {
 
-			if ($this->input->post('hostType') == '3') {
+			if ($this->input->post('hostType') == '3' || $this->input->post('hostType') == '0') {
 
 				$date = date('Y-m-d');
 
@@ -7948,7 +7955,7 @@ class Bango extends CI_Controller
 
 						if (date('H:i:s') < $newTime) {
 							$oldUser = true;
-						}else{
+						} else {
 							$this->db->set('status', 'archived')->where('id', $currentdateLive['id'])->update('userLive');
 						}
 					}
@@ -8430,38 +8437,34 @@ class Bango extends CI_Controller
 
 		$this->db->set(['hoursLive' => $totalLive])->where('id', $checkLiveStatus['userId'])->update('users');
 
+		// check live type, to count the valid time of the host
 
-		// setting coin sharing in users table
-		$getCoins = $this->db->select('coin')->from('users')->where('id', $checkLiveStatus['userId'])->get()->row_array();
-		$coin = $getCoins['coin'];
-		if ($coin >= 200000) {
+		if ($checkLiveStatus['hostType'] == '0') {
 
-			$coin /= 20000;
+			$bonusData['userId'] = $checkLiveStatus['userId'];
+			$bonusData['date'] = date('Y-m-d');
+			$bonusData['hours'] = $data['totaltimePerLive'];
+			$bonusData['day'] = 0;
+			$bonusData['liveId'] = $checkLiveStatus['id'];
 
-			// print_r($coin);exit;
+			// if live time > 35minutes will consider as one day
+			if ($minutes >= 35) {
 
-			$this->db->set(['coinSharing' => $coin])->where('id', $checkLiveStatus['userId'])->update('users');
-		}
-
-
-		//setting basic salary
-		$actualCoin = $getCoins['coin'];
-		$getSal = $this->db->get('hostSalary')->result_array();
-
-		foreach ($getSal as $value) {
-
-			$requirement = $value['coinsRequirement'];
-
-			if ($requirement >= '10000000' && $totalLive >= '3600') {
-
-				$userData['basicSalary'] = $value['basicSalary'];
-			} else {
-
-				if ($requirement <= $actualCoin && $totalLive >= '2400') {
-					$userData['basicSalary'] = $value['basicSalary'];
-				}
+				$bonusData['day'] = 1;
 			}
+
+			// check if host came live on that day or not
+			$getLiveDetails = $this->db->get_where('hostBonusRecords', ['userId' => $checkLiveStatus['userId'], 'date' => $bonusData['date'], 'day' => 1])->row_array();
+			if (!!$getLiveDetails) {
+
+				$bonusData['day'] = 0;
+			}
+
+			$this->db->insert('hostBonusRecords', $bonusData);
 		}
+
+
+
 
 		// $this->db->set($userData)->where('id', $checkLiveStatus['userId'])->update('users');
 
@@ -11064,7 +11067,7 @@ class Bango extends CI_Controller
 			}
 
 			$row['userDetails'] = $getUser;
-			$row['starCount'] = ''.(int)$countStar['coin'].'' ?: '0';
+			$row['starCount'] = '' . (int)$countStar['coin'] . '' ?: '0';
 			$row['liveGift'] = $liveGift['coin'] ?: '0';
 			$row['userLevel'] = $getUser['my_level'];
 			$row['talentLevel'] = $getUser['my_level'];
@@ -11500,8 +11503,8 @@ class Bango extends CI_Controller
 						->where('giftUserId', $get['id'])
 						->get()->row_array();
 
-					$get['totalSendCoin'] = ''.(int)$getSender['coin'].'' ?: '0';
-					$get['totalGetCoins'] = ''.(int)$getReciver['coin'].'' ?: '0';
+					$get['totalSendCoin'] = '' . (int)$getSender['coin'] . '' ?: '0';
+					$get['totalGetCoins'] = '' . (int)$getReciver['coin'] . '' ?: '0';
 
 					if ($get['myAdminFrame'] != '0' && $get['myVipFrame'] == '0' && $get['myFrame'] == '0') {
 						$gett = $this->db->get_where('userAdminFrame', ['id' => $get['myAdminFrame']])->row_array();
@@ -11858,11 +11861,12 @@ class Bango extends CI_Controller
 		if ($this->input->post()) {
 			$checkSocialId = $this->db->get_where('users', ['social_id' => $this->input->post('socialId')])->row_array();
 			if (!empty($checkSocialId)) {
-				if($checkSocialId['userBanStatus'] == 1){
+				if ($checkSocialId['userBanStatus'] == 1) {
 					echo json_encode([
 						'success' => '0',
 						'message' => 'This user has been blocked'
-					]);exit;
+					]);
+					exit;
 				}
 				$data['social_id'] = $this->input->post('socialId');
 				$data['reg_id'] = $this->input->post('reg_id');
@@ -14139,397 +14143,434 @@ class Bango extends CI_Controller
 
 		// get current season dates
 
-		// $currentSeason = $this->db->select('dateStarted,dateExpire')
-		// 	->from('monthlySeson')
-		// 	->order_by('id', 'desc')
-		// 	->limit(1)->get()
-		// 	->row_array();
-		// $sesonStart = $currentSeason['dateStarted'];
-		// $sesonExpire = $currentSeason['dateExpire'];
+		$currentSeason = $this->db->select('dateStarted,dateExpire')
+			->from('monthlySeson')
+			->order_by('id', 'desc')
+			->get()
+			->row_array();
+		$sesonStart = $currentSeason['dateStarted'];
+		$sesonExpire = $currentSeason['dateExpire'];
 
 
-		// $getAllUsers = $this->db->select('users.id, users.my_level, users.talent_level, users.monthlyCoins')
-		// 	->where('host_status', '2')
-		// 	->get('users')->result_array();
-		// // print_r($getAllUsers);
-		// foreach ($getAllUsers as $user) {
+		$getAllUsers = $this->db->select('users.id, users.my_level, users.talent_level, users.monthlyCoins')
+			->where('host_status', '2')
+			->get('users')->result_array();
+		// print_r($getAllUsers);
+		foreach ($getAllUsers as $user) {
 
-		// 	$data['userId'] = $user['id'];
-		// 	$data['monthlyCoins'] = $user['monthlyCoins'];
-		// 	$data['dateFrom'] = $sesonStart;
-		// 	$data['dateTo'] = $sesonExpire;
+			$data = [];
+			$data['userId'] = $user['id'];
+			$data['monthlyCoins'] = $user['monthlyCoins'];
+			$data['dateFrom'] = $sesonStart;
+			$data['dateTo'] = $sesonExpire;
 
 
 
-		// 	// get host approve date 
+			// get host approve date 
 
-		// 	$apDate = $this->db->select('updated')
-		// 		->from('userLiveRequest')
-		// 		->where('userId', $user['id'])
-		// 		->get()->row_array();
+			$apDate = $this->db->select('updated')
+				->from('userLiveRequest')
+				->where('userId', $user['id'])
+				->get()->row_array();
 
 
-		// 	// get number of days host was live
+			// get number of days host was live
 
-		// 	$liveDays = 0;
-		// 	$totalDaysLive = $this->db->select_sum('day')
-		// 		->from('hostBonusRecords')
-		// 		->where('userId', $user['id'])
-		// 		->where('date >=', $sesonStart)
-		// 		->where('date <=', $sesonExpire)
-		// 		->get()->row_array();
+			$liveDays = 0;
+			$totalDaysLive = $this->db->select_sum('day')
+				->from('hostBonusRecords')
+				->where('userId', $user['id'])
+				->where('date >=', $sesonStart)
+				->where('date <=', $sesonExpire)
+				->get()->row_array();
 
-		// 	if (!empty($totalDaysLive['day'])) {
-		// 		$liveDays = $totalDaysLive['day'];
-		// 	}
+			if (!empty($totalDaysLive['day'])) {
+				$liveDays = $totalDaysLive['day'];
+			}
 
+
+
+			// get total live duration of the host
 
+
+			// total live minutes video host
+			$data['liveDuration'] = 0;
+			$totalLive = 0;
+			$live = $this->db->select_sum('userLive.totaltimePerLive')
+				->from('userLive')
+				->where('userId', $user['id'])
+				->group_start()
+				->or_where('userLive.status', 'archived')
+				->or_where('userLive.status', 'wait')
+				->group_end()
+				->or_where('userLive.status', 'archived')
+				->where('userLive.createdDate >= ', $sesonStart)
+				->where('userLive.createdDate <= ', $sesonExpire)
+				->where('userLive.hostType', '0')
+				->get()->row_array();
 
-		// 	// get total live duration of the host
 
-		// 	$data['liveDuration'] = 0;
-		// 	$totalLive = 0;
-		// 	$live = $this->db->select_sum('userLive.totaltimePerLive')
-		// 		->from('userLive')
-		// 		->where('userId', $user['id'])
-		// 		->where('userLive.status', 'archived')
-		// 		->where('userLive.createdDate >= ', $sesonStart)
-		// 		->where('userLive.createdDate <= ', $sesonExpire)
-		// 		->get()->row_array();
+				// print_r($this->db->last_query());exit;
+			if (!empty($live['totaltimePerLive'])) {
+				$totalLive = $live['totaltimePerLive'];
+				$data['liveDuration'] = $totalLive;
+			}
 
-		// 	if (!empty($live['totaltimePerLive'])) {
-		// 		$totalLive = $live['totaltimePerLive'];
-		// 		$data['liveDuration'] = $totalLive;
-		// 	}
 
+			// total live  minutes audio host
+			$data['liveDurationAudio'] = 0;
+			$totalLiveAudio = 0;
+			$live = $this->db->select_sum('userLive.totaltimePerLive')
+				->from('userLive')
+				->where('userId', $user['id'])
+				->group_start()
+				->or_where('userLive.status', 'archived')
+				->or_where('userLive.status', 'wait')
+				->group_end()
+				->where('userLive.createdDate >= ', $sesonStart)
+				->where('userLive.createdDate <= ', $sesonExpire)
+				->where('userLive.hostType', '3')
+				->get()->row_array();
 
-		// 	// calculating the coin sharing of the host
+			if (!empty($live['totaltimePerLive'])) {
+				$totalLiveAudio = $live['totaltimePerLive'];
+				$data['liveDurationAudio'] = $totalLiveAudio;
+			}
 
-		// 	$monthlyGiftCoins = $user['monthlyCoins'];
-		// 	$data['coinSharing'] = 0;
-		// 	if ($monthlyGiftCoins >= 200000) {
 
-		// 		$monthlyGiftCoins /= 20000;
+			// calculating the coin sharing of the host
 
-		// 		$data['coinSharing'] = $monthlyGiftCoins;
-		// 	}
+			// $monthlyGiftCoins = $user['monthlyCoins'];
+			// $data['coinSharing'] = 0;
+			// if ($monthlyGiftCoins >= 200000) {
 
+			// 	$monthlyGiftCoins /= 20000;
 
-		// 	// calculating basic salary for the host
+			// 	$data['coinSharing'] = $monthlyGiftCoins;
+			// }
 
-		// 	$actualCoin = $user['monthlyCoins'];
-		// 	$getSal = $this->db->get('hostSalary')->result_array();
 
+			// calculating salary for the host
 
-		// 	$data['basicSalary'] = 0;
-		// 	foreach ($getSal as $value) {
-		// 		// print_r($value);
 
-		// 		$requirement = $value['coinsRequirement'];
+			$data['basicSalary'] = 0;
+			$data['agency_commission'] = 0;
+			$data['agency_commission_audio'] = 0;
+			$data['basicSalaryAudio'] = 0;
+			$data['audio_coins'] = 0;
+			$data['video_coins'] = 0;
 
-		// 		if ($requirement >= '10000000' && $totalLive >= '3600') {
+			if ($data['liveDuration'] >= 900) {
 
-		// 			// echo "inone";
+				if ($liveDays >= 10) {
 
-		// 			if ($actualCoin >= $value['coinsRequirement'] && $actualCoin <= $value['coinsRequirmentTo']) {
+					// calculating coins for video live
+					$video_coins = 0;
+					$actualCoin = $this->db->select_sum('coin')
+						->from('userGiftHistory')
+						->where('giftUserId', $user['id'])
+						->where('type', '0')
+						->where('userGiftHistory.created >= ', $sesonStart)
+						->where('userGiftHistory.created <= ', $sesonExpire)
+						->get()->row_array();
 
-		// 				// echo "ho";
+					if (!empty($actualCoin['coin'])) {
+						$video_coins = $actualCoin['coin'];
+					}
 
-		// 				$data['basicSalary'] = $value['basicSalary'];
-		// 			}
-		// 		} else if ($requirement >= '200000' && $totalLive >= '2400') {
+					$data['video_coins'] = $video_coins;
 
-		// 			// echo "intwo";
+					// calculating coins for audio live
+					$audio_coins = 0;
+					$actualAudioCoin = $this->db->select_sum('coin')
+						->from('userGiftHistory')
+						->where('giftUserId', $user['id'])
+						->where('type', '3')
+						->where('userGiftHistory.created >= ', $sesonStart)
+						->where('userGiftHistory.created <= ', $sesonExpire)
+						->get()->row_array();
 
-		// 			if ($actualCoin >= $value['coinsRequirement'] && $actualCoin <= $value['coinsRequirmentTo']) {
-		// 				// echo "hi";
+					if (!empty($actualAudioCoin['coin'])) {
+						$audio_coins = $actualAudioCoin['coin'];
+					}
 
-		// 				$data['basicSalary'] = $value['basicSalary'];
-		// 			}
-		// 		}
-		// 	}
+					$data['audio_coins'] = $audio_coins;
 
 
-		// 	$date1 = new DateTime($apDate['updated']);
-		// 	$date2 = new DateTime($sesonExpire);
-		// 	$numdays = $date1->diff($date2);
 
-		// 	$days = $numdays->days;
+					// basic salary video host
 
-		// 	$data['bonus1'] = 0;
-		// 	$data['bonus2'] = 0;
-		// 	$data['bonus3'] = 0;
+					$video_host_salary = $this->db->get('host_cam_salary')->result_array();
 
+					foreach ($video_host_salary as $salary) {
 
+						if ($salary['target_from'] <= $video_coins && $salary['target_to'] >= $video_coins) {
+							$data['basicSalary'] = $salary['host_salary'];
+							$data['agency_commission'] = $salary['agency_commision'];
+						}
+					}
 
-		// 	if ($user['monthlyCoins'] >= 1500000) {
 
-		// 		if ($data['liveDuration'] >= 2400) {
+					// basic salary audio host
 
-		// 			if ($liveDays > 15) {
+					$audio_host_salary = $this->db->get('host_audio_salary')->result_array();
 
-		// 				if ($days > 1 && $days <= 30) {
+					foreach ($audio_host_salary as $audio_salary) {
+						if ($audio_salary['target_from'] <= $audio_coins && $audio_salary['target_to'] >= $audio_coins) {
+							$data['basicSalaryAudio'] = $audio_salary['host_salary'];
+							$data['agency_commission_audio'] = $audio_salary['agency_commision'];
+						}
+					}
+				}
+			}
 
-		// 					$data['bonus1'] = 35;
-		// 				} else if ($days > 30 && $days <= 60) {
+			$this->db->insert('hostsDataRecord', $data);
+		}
 
-		// 					$data['bonus2'] = 25;
-		// 				} else if ($days > 60 && $days <= 90) {
 
-		// 					$data['bonus3'] = 10;
-		// 				}
-		// 			}
-		// 		}
-		// 	}
+		// $sesonStart
+		// $sesonExpire
 
-		// 	$this->db->insert('hostsDataRecord', $data);
-		// }
 
+		$getAllAgencies = $this->db->where('status', '1')
+			->get('agencyDetails')
+			->result_array();
 
-		// // $sesonStart
-		// // $sesonExpire
+		foreach ($getAllAgencies as $allAgencies) {
 
 
-		// $getAllAgencies = $this->db->where('status', '1')
-		// 	->get('agencyDetails')
-		// 	->result_array();
+			$agencyId = $allAgencies['agencyCode'];
 
-		// foreach ($getAllAgencies as $allAgencies) {
+			$agencyData['agencyId'] = $agencyId;
 
+			$agencyData['activeHosts'] = $this->db->select('userLive.userId')
+				->from('userLive')
+				->join('userLiveRequest', 'userLiveRequest.userId = userLive.userId', 'left')
+				->where('userLiveRequest.agencyId', $agencyId)
+				->where('userLive.status', 'live')
+				->where('userLive.createdDate >= ', $sesonStart)
+				->where('userLive.createdDate <= ', $sesonExpire)
+				->group_by('userLiveRequest.userId')
+				->get()->num_rows();
 
-		// 	$agencyId = $allAgencies['agencyCode'];
+			$agencyData['NewHost'] = $this->db->select('*')
+				->from('userLiveRequest')
+				->where('host_status', 2)
+				->where('created >= ', $sesonStart)
+				->where('created <= ', $sesonExpire)
+				->where('userLiveRequest.agencyId', $agencyId)
+				->get()->num_rows();
 
-		// 	$agencyData['agencyId'] = $agencyId;
+			$agencyData['hostCoin'] = 0;
+			$coinss = $this->db->select_sum('users.monthlyCoins')
+				->from('users')
+				->join('userLiveRequest', 'userLiveRequest.userId = users.id', 'left')
+				->where('userLiveRequest.agencyId', $agencyId)
+				->where('userLiveRequest.host_status', 2)
+				->get()->row_array();
 
-		// 	$agencyData['activeHosts'] = $this->db->select('userLive.userId')
-		// 		->from('userLive')
-		// 		->join('userLiveRequest', 'userLiveRequest.userId = userLive.userId', 'left')
-		// 		->where('userLiveRequest.agencyId', $agencyId)
-		// 		->where('userLive.status', 'live')
-		// 		->where('userLive.createdDate >= ', $sesonStart)
-		// 		->where('userLive.createdDate <= ', $sesonExpire)
-		// 		->group_by('userLiveRequest.userId')
-		// 		->order_by('userLiveRequest.created', 'desc')
-		// 		->get()->num_rows();
+			if (!!$coinss['monthlyCoins'] || $coinss['monthlyCoins'] != null) {
+				$agencyData['hostCoin'] = $coinss['monthlyCoins'];
+			}
 
-		// 	$agencyData['NewHost'] = $this->db->select('*')
-		// 		->from('userLiveRequest')
-		// 		->where('host_status', 2)
-		// 		->where('created >= ', $sesonStart)
-		// 		->where('created <= ', $sesonExpire)
-		// 		->where('userLiveRequest.agencyId', $agencyId)
-		// 		->get()->num_rows();
+			$check = $this->db->select_sum('userLive.totaltimePerLive')
+				->from('userLive')
+				->join('userLiveRequest', 'userLiveRequest.userId = userLive.userId', 'left')
+				->where('userLiveRequest.agencyId', $agencyId)
+				->where('userLiveRequest.host_status', 2)
+				->where('userLive.status', 'archived')
+				->where('userLive.createdDate >= ', $sesonStart)
+				->where('userLive.createdDate <= ', $sesonExpire)
+				->get()->row_array();
 
-		// 	$agencyData['hostCoin'] = 0;
-		// 	$coinss = $this->db->select_sum('users.monthlyCoins')
-		// 		->from('users')
-		// 		->join('userLiveRequest', 'userLiveRequest.userId = users.id', 'left')
-		// 		->where('userLiveRequest.agencyId', $agencyId)
-		// 		->where('userLiveRequest.host_status', 2)
-		// 		->get()->row_array();
 
-		// 	if (!!$coinss['monthlyCoins'] || $coinss['monthlyCoins'] != null) {
-		// 		$agencyData['hostCoin'] = $coinss['monthlyCoins'];
-		// 	}
+			$minutes = $check['totaltimePerLive'];
+			$finalTime = $minutes / '60';
+			$agencyData['liveDuration'] = round($finalTime);
 
-		// 	$check = $this->db->select_sum('userLive.totaltimePerLive')
-		// 		->from('userLive')
-		// 		->join('userLiveRequest', 'userLiveRequest.userId = userLive.userId', 'left')
-		// 		->where('userLiveRequest.agencyId', $agencyId)
-		// 		->where('userLiveRequest.host_status', 2)
-		// 		->where('userLive.status', 'archived')
-		// 		->where('userLive.createdDate >= ', $sesonStart)
-		// 		->where('userLive.createdDate <= ', $sesonExpire)
-		// 		->get()->row_array();
+			$agencyData['totalHosts'] = $this->db->select('*')
+				->from('userLiveRequest')
+				->where('host_status', 2)
+				->where('agencyId', $agencyId)
+				->get()->num_rows();
 
+			$getUserIds = $this->db->select('userId')
+				->from('userLiveRequest')
+				->where('agencyId', $agencyId)
+				->where('host_status', 2)
+				->get()->result_array();
 
-		// 	$minutes = $check['totaltimePerLive'];
-		// 	$finalTime = $minutes / '60';
-		// 	$agencyData['liveDuration'] = round($finalTime);
 
-		// 	$agencyData['totalHosts'] = $this->db->select('*')
-		// 		->from('userLiveRequest')
-		// 		->where('host_status', 2)
-		// 		->where('agencyId', $agencyId)
-		// 		->get()->num_rows();
+			$reward = 0;
+			$hostsCoinReward = 0;
+			foreach ($getUserIds as $list) {
+				$getSingleIncome =  $this->db->select('users.monthlyCoins')
+					->from('users')
+					->where('users.id', $list['userId'])
+					->get()->row_array();
 
-		// 	$getUserIds = $this->db->select('userId')
-		// 		->from('userLiveRequest')
-		// 		->where('agencyId', $agencyId)
-		// 		->where('host_status', 2)
-		// 		->get()->result_array();
 
+				$getHostCoinReward = $this->db->get('hostCoinReward')->result_array();
+				foreach ($getHostCoinReward as $hostCoinReward) {
+					if ($hostCoinReward['requirments'] <= $getSingleIncome['monthlyCoins'] && $hostCoinReward['requirmentsTo'] >= $getSingleIncome['monthlyCoins']) {
+						$hostsCoinReward += $hostCoinReward['reward'];
+					}
+				}
 
-		// 	$reward = 0;
-		// 	$hostsCoinReward = 0;
-		// 	foreach ($getUserIds as $list) {
-		// 		$getSingleIncome =  $this->db->select('users.monthlyCoins')
-		// 			->from('users')
-		// 			->where('users.id', $list['userId'])
-		// 			->get()->row_array();
+				$getHostReward = $this->db->get('agencySalary')->result_array();
+				foreach ($getHostReward as $hostReward) {
 
+					if ($hostReward['requirments'] <= $getSingleIncome['monthlyCoins'] && $hostReward['requirmentsTo'] >= $getSingleIncome['monthlyCoins']) {
+						$reward += $hostReward['reward'];
+					}
+				}
+			}
+			$agencyData['hostsCoinReward'] = $hostsCoinReward;
+			//   $agencyData['excellentHostReward'] = $reward;
 
-		// 		$getHostCoinReward = $this->db->get('hostCoinReward')->result_array();
-		// 		foreach ($getHostCoinReward as $hostCoinReward) {
-		// 			if ($hostCoinReward['requirments'] <= $getSingleIncome['monthlyCoins'] && $hostCoinReward['requirmentsTo'] >= $getSingleIncome['monthlyCoins']) {
-		// 				$hostsCoinReward += $hostCoinReward['reward'];
-		// 			}
-		// 		}
+			$hostCoin = $agencyData['hostCoin'];
 
-		// 		$getHostReward = $this->db->get('agencySalary')->result_array();
-		// 		foreach ($getHostReward as $hostReward) {
+			$getReward = $this->db->get('agencyReward')->result_array();
 
-		// 			if ($hostReward['requirments'] <= $getSingleIncome['monthlyCoins'] && $hostReward['requirmentsTo'] >= $getSingleIncome['monthlyCoins']) {
-		// 				$reward += $hostReward['reward'];
-		// 			}
-		// 		}
-		// 	}
-		// 	$agencyData['hostsCoinReward'] = $hostsCoinReward;
-		// 	//   $agencyData['excellentHostReward'] = $reward;
+			foreach ($getReward as $reward) {
+				if ($hostCoin < 100000000) {
+					$agencyData['reward'] = 0;
+				}
 
-		// 	$hostCoin = $agencyData['hostCoin'];
+				if ($hostCoin >= $reward['requirments']) {
+					$agencyData['reward'] = $reward['rewards'];
+				}
+			}
 
-		// 	$getReward = $this->db->get('agencyReward')->result_array();
+			$apDate = $this->db->select('userId, updated')
+				->from('userLiveRequest')
+				->where('userLiveRequest.agencyId', $agencyId)
+				->where('userLiveRequest.host_status', 2)
+				->get()->result_array();
 
-		// 	foreach ($getReward as $reward) {
-		// 		if ($hostCoin < 100000000) {
-		// 			$agencyData['reward'] = 0;
-		// 		}
 
-		// 		if ($hostCoin >= $reward['requirments']) {
-		// 			$agencyData['reward'] = $reward['rewards'];
-		// 		}
-		// 	}
+			$HostExcellentReward = 0;
 
-		// 	$apDate = $this->db->select('userId, updated')
-		// 		->from('userLiveRequest')
-		// 		->where('userLiveRequest.agencyId', $agencyId)
-		// 		->where('userLiveRequest.host_status', 2)
-		// 		->get()->result_array();
 
+			foreach ($apDate as $user) {
 
-		// 	$HostExcellentReward = 0;
+				$userCoin =  $this->db->select_sum('users.monthlyCoins')
+					->from('users')
+					->where('users.id', $user['userId'])
+					->get()->row_array();
 
+				$userTime = $this->db->select_sum('totaltimePerLive')
+					->from('userLive')
+					->where('userId', $user['userId'])
+					->where('status', 'archived')
+					->where('userLive.createdDate >= ', $sesonStart)
+					->where('userLive.createdDate <= ', $sesonExpire)
+					->get()->row_array();
 
-		// 	foreach ($apDate as $user) {
+				$liveDuration = $userTime['totaltimePerLive'];
 
-		// 		$userCoin =  $this->db->select_sum('users.monthlyCoins')
-		// 			->from('users')
-		// 			->where('users.id', $user['userId'])
-		// 			->get()->row_array();
 
-		// 		$userTime = $this->db->select_sum('totaltimePerLive')
-		// 			->from('userLive')
-		// 			->where('userId', $user['userId'])
-		// 			->where('status', 'archived')
-		// 			->where('userLive.createdDate >= ', $sesonStart)
-		// 			->where('userLive.createdDate <= ', $sesonExpire)
-		// 			->get()->row_array();
 
-		// 		$liveDuration = $userTime['totaltimePerLive'];
+				if (!!$apDate) {
 
+					$date1 = new DateTime($apDate['updated']);
+					$date2 = new DateTime($sesonExpire);
+					$numdays = $date1->diff($date2);
 
+					$days = $numdays->days;
 
-		// 		if (!!$apDate) {
+					$dataa['bonus1'] = 0;
+					$dataa['bonus2'] = 0;
+					$dataa['bonus3'] = 0;
 
-		// 			$date1 = new DateTime($apDate['updated']);
-		// 			$date2 = new DateTime($sesonExpire);
-		// 			$numdays = $date1->diff($date2);
+					$liveDays = 0;
 
-		// 			$days = $numdays->days;
+					$totalDaysLive = $this->db->select_sum('day')
+						->from('hostBonusRecords')
+						->where('userId', $user['userId'])
+						->where('date >=', $sesonStart)
+						->where('date <=', $sesonExpire)
+						->get()->row_array();
 
-		// 			$dataa['bonus1'] = 0;
-		// 			$dataa['bonus2'] = 0;
-		// 			$dataa['bonus3'] = 0;
+					if (!empty($totalDaysLive['day'])) {
+						$liveDays = $totalDaysLive['day'];
+					}
 
-		// 			$liveDays = 0;
 
-		// 			$totalDaysLive = $this->db->select_sum('day')
-		// 				->from('hostBonusRecords')
-		// 				->where('userId', $user['userId'])
-		// 				->where('date >=', $sesonStart)
-		// 				->where('date <=', $sesonExpire)
-		// 				->get()->row_array();
+					if ($userCoin['monthlyCoins'] >= 1500000) {
 
-		// 			if (!empty($totalDaysLive['day'])) {
-		// 				$liveDays = $totalDaysLive['day'];
-		// 			}
+						if ($liveDuration >= 2400) {
 
+							if ($liveDays > 15) {
 
-		// 			if ($userCoin['monthlyCoins'] >= 1500000) {
+								if ($days > 1 && $days <= 30) {
 
-		// 				if ($liveDuration >= 2400) {
+									$dataa['bonus1'] = 35;
+								} else if ($days > 30 && $days <= 60) {
 
-		// 					if ($liveDays > 15) {
+									$dataa['bonus2'] = 25;
+								} else if ($days > 60 && $days <= 90) {
 
-		// 						if ($days > 1 && $days <= 30) {
+									$dataa['bonus3'] = 10;
+								}
+							}
+						}
+					}
 
-		// 							$dataa['bonus1'] = 35;
-		// 						} else if ($days > 30 && $days <= 60) {
+					$HostExcellentReward += $dataa['bonus1'];
+					$HostExcellentReward += $dataa['bonus2'];
+					$HostExcellentReward += $dataa['bonus3'];
+				}
+			}
+			// exit;
 
-		// 							$dataa['bonus2'] = 25;
-		// 						} else if ($days > 60 && $days <= 90) {
+			$agencyData['HostExcellentReward'] = $HostExcellentReward;
 
-		// 							$dataa['bonus3'] = 10;
-		// 						}
-		// 					}
-		// 				}
-		// 			}
+			$ExtraReward = 0;
+			foreach ($getUserIds as $list) {
+				$userCoin =  $this->db->select_sum('users.monthlyCoins')
+					->from('users')
+					->where('users.id', $list['userId'])
+					->get()->row_array();
 
-		// 			$HostExcellentReward += $dataa['bonus1'];
-		// 			$HostExcellentReward += $dataa['bonus2'];
-		// 			$HostExcellentReward += $dataa['bonus3'];
-		// 		}
-		// 	}
-		// 	// exit;
+				$userLevel = $this->db->select('talent_level')
+					->from('users')
+					->where('id', $list['userId'])
+					->get()->row_array();
 
-		// 	$agencyData['HostExcellentReward'] = $HostExcellentReward;
+				//  print_r($userLevel);
+				$userTime = $this->db->select_sum('totaltimePerLive')
+					->from('userLive')
+					->where('userId', $list['userId'])
+					->where('status', 'archived')
+					->where('userLive.createdDate >= ', $sesonStart)
+					->where('userLive.createdDate <= ', $sesonExpire)
+					->get()->row_array();
 
-		// 	$ExtraReward = 0;
-		// 	foreach ($getUserIds as $list) {
-		// 		$userCoin =  $this->db->select_sum('users.monthlyCoins')
-		// 			->from('users')
-		// 			->where('users.id', $list['userId'])
-		// 			->get()->row_array();
 
-		// 		$userLevel = $this->db->select('talent_level')
-		// 			->from('users')
-		// 			->where('id', $list['userId'])
-		// 			->get()->row_array();
+				if ($userLevel['talent_level'] >= 4 && $userCoin['monthlyCoins'] >= 4500000) {
 
-		// 		//  print_r($userLevel);
-		// 		$userTime = $this->db->select_sum('totaltimePerLive')
-		// 			->from('userLive')
-		// 			->where('userId', $list['userId'])
-		// 			->where('status', 'archived')
-		// 			->where('userLive.createdDate >= ', $sesonStart)
-		// 			->where('userLive.createdDate <= ', $sesonExpire)
-		// 			->get()->row_array();
+					if ($userTime['totaltimePerLive'] >= 3600 && $userTime['totaltimePerLive'] < 4200) {
 
+						$ExtraReward += 60;
+					} else if ($userTime['totaltimePerLive'] >= 4200 && $userTime['totaltimePerLive'] < 4800) {
 
-		// 		if ($userLevel['talent_level'] >= 4 && $userCoin['monthlyCoins'] >= 4500000) {
+						$ExtraReward += 70;
+					} else if ($userTime['totaltimePerLive'] >= 4800) {
 
-		// 			if ($userTime['totaltimePerLive'] >= 3600 && $userTime['totaltimePerLive'] < 4200) {
+						$ExtraReward += 80;
+					}
+				}
+			}
 
-		// 				$ExtraReward += 60;
-		// 			} else if ($userTime['totaltimePerLive'] >= 4200 && $userTime['totaltimePerLive'] < 4800) {
 
-		// 				$ExtraReward += 70;
-		// 			} else if ($userTime['totaltimePerLive'] >= 4800) {
+			$agencyData['bonus'] = $ExtraReward;
+			$agencyData['dateFrom']  = $sesonStart;
+			$agencyData['dateTo']  = $sesonExpire;
 
-		// 				$ExtraReward += 80;
-		// 			}
-		// 		}
-		// 	}
-
-
-		// 	$agencyData['bonus'] = $ExtraReward;
-		// 	$agencyData['dateFrom']  = $sesonStart;
-		// 	$agencyData['dateTo']  = $sesonExpire;
-
-		// 	// print_r($agencyData);exit;
-		// 	$this->db->insert('agencyExcelReport', $agencyData);
-		// }
+			// print_r($agencyData);exit;
+			$this->db->insert('agencyExcelReport', $agencyData);
+		}
 
 
 		$date = date('Y-m-d');
@@ -15450,7 +15491,7 @@ class Bango extends CI_Controller
 
 				$datas['loginOtp'] = $otp;
 				$checkPhone = $this->db->get_where('users', ['phone' => $this->input->post('phone')])->row_array();
-				if(empty($checkPhone)){
+				if (empty($checkPhone)) {
 
 					$getUserName = $this->db->select('username')->from('users')->order_by('id', 'desc')->get()->row_array();
 					if (empty($getUserName)) {
@@ -15460,10 +15501,9 @@ class Bango extends CI_Controller
 						$datas['username'] = ++$uname;
 					}
 					$datas['phone'] = $this->input->post('phone');
-					
-					$this->db->insert('users', $datas);
 
-				}else{
+					$this->db->insert('users', $datas);
+				} else {
 
 					$update = $this->Common_Model->update('users', $datas, 'phone', $this->input->post('phone'));
 				}
@@ -17086,36 +17126,36 @@ class Bango extends CI_Controller
 				)
 			]);
 
-			if($charge['amount_captured'] == $checkOrderId['coinsPrice']){
+			if ($charge['amount_captured'] == $checkOrderId['coinsPrice']) {
 
 				$data['paymentId'] = $charge->id;
 				$data['customerId'] = $charge->customer;
 				$data['paymentCreated'] = date('Y-m-d h:i:s');
 				$data['status'] = '1';
-	
+
 				$userCoins['purchasedCoin'] += $checkOrderId['coinsAmount'];
-	
+
 				$this->db->set($data)->where('orderId', $this->input->post('orderId'))->update('orderDetails');
 				$this->db->set($userCoins)->where('id', $checkCustomerId['userId'])->update('users');
-	
+
 				echo json_encode([
 					'status' => 1,
 					'message' => 'order completed'
 				]);
 				exit;
-
-			}else{
+			} else {
 				echo json_encode([
 					'status' => 0,
 					'message' => 'payment failed'
-				]);exit;
+				]);
+				exit;
 			}
 
-			print_r($charge['amount_captured']);exit;
+			print_r($charge['amount_captured']);
+			exit;
 
-			print_r($charge);exit;
-
-
+			print_r($charge);
+			exit;
 		} catch (exception $e) {
 			echo json_encode([
 				'status' => 0,
@@ -17449,7 +17489,7 @@ class Bango extends CI_Controller
 					$userBet = null;
 				}
 
-				
+
 				$a = 0;
 				$b = 0;
 				$c = 0;
@@ -17821,13 +17861,14 @@ class Bango extends CI_Controller
 
 	public function imageOnEntry()
 	{
-		if($_SERVER['REQUEST_METHOD'] === 'POST'){
+		if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
-			if(!$this->input->post('deviceId')){
+			if (!$this->input->post('deviceId')) {
 				echo json_encode([
 					'status' => 0,
 					'message' => 'deviceId required'
-				]);exit;
+				]);
+				exit;
 			}
 
 			// if(!$this->input->post('userId')){
@@ -17837,36 +17878,37 @@ class Bango extends CI_Controller
 			// 	]);exit;
 			// }
 
-			if($this->input->post('userId') == '0'){
+			if ($this->input->post('userId') == '0') {
 
 				$check_block['userBanStatus'] == '0';
-
-			}else{
+			} else {
 
 				$check_block = $this->db->get_where('users', ['id' => $this->input->post('userId')])->row_array();
-				if(empty($check_block)){
+				if (empty($check_block)) {
 					echo json_encode([
 						'status' => 0,
 						'message' => 'invalid userId'
-					]);exit;
+					]);
+					exit;
 				}
-
 			}
 
 
-			if($check_block['userBanStatus'] == '1'){
+			if ($check_block['userBanStatus'] == '1') {
 				echo json_encode([
 					'status' => 0,
 					'message' => 'This user has been blocked. ~BangoAdmin'
-				]);exit;
+				]);
+				exit;
 			}
 
 			$check = $this->db->get_where('blockDeviceId', ['deviceId' => $this->input->post('deviceId')])->row_array();
-			if(!!$check){
+			if (!!$check) {
 				echo json_encode([
 					'status' => 0,
 					'message' => 'Your device has been blocked. ~BangoAdmin'
-				]);exit;
+				]);
+				exit;
 			}
 
 			$get = $this->db->order_by('id', 'desc')->get('imageOnEntry')->row_array();
@@ -17878,19 +17920,19 @@ class Bango extends CI_Controller
 				]);
 				exit;
 			}
-	
+
 			echo json_encode([
 				'status' => 1,
 				'message' => 'entry effects',
 				'details' => $get
 			]);
 			exit;
-			
-		}else{
+		} else {
 			echo json_encode([
 				'status' => 0,
 				'message' => 'method not allowed'
-			]);exit;
+			]);
+			exit;
 		}
 	}
 
@@ -18037,9 +18079,9 @@ class Bango extends CI_Controller
 			// coins adding to host account
 			$amount = (10 / 100) * $per;
 
-			
+
 			$amount *= $count;
-			
+
 			$giftdata['userId'] = $sender['id'];
 			$giftdata['giftUserId'] = $host['id'];
 			$giftdata['giftId'] = $gift['id'];
@@ -18047,7 +18089,7 @@ class Bango extends CI_Controller
 			$giftdata['coin'] = $amount;
 			$giftdata['type'] = '1';
 			$giftdata['created'] = date('Y-m-d');
-			
+
 			$this->db->insert('userGiftHistory', $giftdata);
 
 			$userCoin['coin'] = $host['coin'] ?: 0;
@@ -18139,7 +18181,7 @@ class Bango extends CI_Controller
 						'giftImage' => $gift['image'],
 						'luckCount' => $luckCount,
 						'starStatus' => $strStatus,
-						'starCount' => ''.(int)$countStar['coin'].'' ?: '0'
+						'starCount' => '' . (int)$countStar['coin'] . '' ?: '0'
 					]
 				]);
 				exit;
@@ -18149,7 +18191,7 @@ class Bango extends CI_Controller
 					'message' => 'lucky id hit',
 					'details' => [
 						'starStatus' => $strStatus,
-						'starCount' => ''.(int)$countStar['coin'].'' ?: "0"
+						'starCount' => '' . (int)$countStar['coin'] . '' ?: "0"
 					]
 				]);
 				exit;
@@ -18215,7 +18257,8 @@ class Bango extends CI_Controller
 		}
 	}
 
-	public function allentry(){
+	public function allentry()
+	{
 		$get = $this->db->get('vips')->result_array();
 
 		echo json_encode([
@@ -18223,7 +18266,8 @@ class Bango extends CI_Controller
 		]);
 	}
 
-	public function test(){
+	public function test()
+	{
 		$get = $this->db->get('users')->result_array();
 
 
@@ -18236,33 +18280,33 @@ class Bango extends CI_Controller
 
 	}
 
-	public function test2(){
+	public function test2()
+	{
 
-		if($_SERVER['REQUEST_METHOD'] === 'POST'){
+		if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 			$user = $this->db->get_where('users', ['id' => $this->input->post('userId')])->row_array();
-			if(empty($user)){
+			if (empty($user)) {
 				echo json_encode([
 					'status' => 0,
 					'message' => 'invalid userId'
-				]);exit;
+				]);
+				exit;
 			}
 
 			echo json_encode([
 				'status' => 1,
 				'message' => 'data found',
 				'details' => $user
-			]);exit;
-
-			
-
-		}else{
+			]);
+			exit;
+		} else {
 			echo json_encode([
 				'status' => 0,
 				'message' => 'Method not allowed'
-			]);exit;
+			]);
+			exit;
 		}
-
 	}
 
 
