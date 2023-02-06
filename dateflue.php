@@ -1503,11 +1503,11 @@ class DateFlue extends CI_Controller
 			if (!!$checkUser) {
 
 				$getLive = $this->db->select('id, otherUserLiveId, otherUserId')
-					->from('pkbattle')
-					->where('userId !=', $this->input->post('userId'))
-					->where('otherUserId !=', $this->input->post('userId'))
-					->where('battleStatus', 'live')
-					->get()->result_array();
+									->from('pkbattle')
+									->where('userId !=', $this->input->post('userId'))
+									->where('otherUserId !=', $this->input->post('userId'))
+									->where('battleStatus', 'live')
+									->get()->result_array();
 				if (!!$getLive) {
 
 					// print_r($getLive);exit;
@@ -1541,6 +1541,7 @@ class DateFlue extends CI_Controller
 						} else {
 							$getHostDeatils['followStatus'] = false;
 						}
+						$getHostDeatils['pkId'] = $value['id'];
 
 
 						$pass[] = $getHostDeatils;
@@ -1585,11 +1586,11 @@ class DateFlue extends CI_Controller
 
 				$this->db->set($data)->where('id', $this->input->post('pkId'))->update('pkbattle');
 
-				echo json_encode([
-					'success' => 1,
-					'message' => 'user 1 has left the battle'
-				]);
-				exit;
+				// echo json_encode([
+				// 	'success' => 1,
+				// 	'message' => 'user 1 has left the battle'
+				// ]);
+				// exit;
 			}
 
 			if ($this->input->post('type') == 2) {
@@ -1597,11 +1598,11 @@ class DateFlue extends CI_Controller
 
 				$this->db->set($data)->where('id', $this->input->post('pkId'))->update('pkbattle');
 
-				echo json_encode([
-					'success' => 1,
-					'message' => 'user 2 has left the battle'
-				]);
-				exit;
+				// echo json_encode([
+				// 	'success' => 1,
+				// 	'message' => 'user 2 has left the battle'
+				// ]);
+				// exit;
 			}
 
 			$data['endDate'] = date('Y-m-d');
@@ -1659,8 +1660,11 @@ class DateFlue extends CI_Controller
 
 			$data['battleStatus'] = 'end';
 
+			// print_r($data);exit;
 			$update = $this->db->set($data)->where('id', $this->input->post('pkId'))->update('pkbattle');
 
+			// print_r($this->db->last_query());exit;
+			
 			$hType['hostType'] = 1;
 
 			$this->db->set($hType)->where('id', $this->input->post('userLiveId'))->update('userLive');
@@ -18335,6 +18339,139 @@ class DateFlue extends CI_Controller
 				'status' => 0,
 				'message' => 'method not allowed'
 			]);exit;
+		}
+	}
+
+	public function report_video(){
+		if($_SERVER['REQUEST_METHOD'] === 'POST'){
+
+			$user = $this->db->get_where('users', ['id' => $this->input->post('userId')])->row_array();
+			if(empty($user)){
+				echo json_encode([
+					'status' => 0,
+					'message' => 'invalid userId'
+				]);exit;
+			}
+
+			$video = $this->db->get_where('userVideos', ['id' => $this->input->post('videoId')])->row_array();
+			if(empty($video)){
+				echo json_encode([
+					'status' => 0,
+					'message' => 'invalid videoId'
+				]);exit;
+			}
+
+			if($user['id'] == $video['userId']){
+				echo json_encode([
+					'status' => 0,
+					'message' => 'you can not report your own video'
+				]);exit;
+			}
+
+			$report = $this->db->get_where('video_report', ['userId' => $user['id'], 'videoId' => $video['id']])->row_array();
+			if(!!$report){
+				echo json_encode([
+					'status' => 0,
+					'message' => 'video already reported'
+				]);exit;
+			}
+
+			if(!$this->input->post('report_reason')){
+				echo json_encode([
+					'status' => 0,
+					'message' => 'report_reason required'
+				]);exit;
+			}
+
+			$data['userId'] = $user['id'];
+			$data['videoId'] = $video['id'];
+			$data['report_reason'] = $this->input->post('report_reason');
+			$data['date'] = date('Y-m-d H:i:s');
+			if($this->db->insert('video_report', $data)){
+				echo json_encode([
+					'status' => 1,
+					'message' => 'video reported'
+				]);exit;
+			}else{
+				echo json_encode([
+					'status' => 0,
+					'message' => 'DB error'
+				]);exit;
+			}
+
+
+			
+			
+
+		}else{
+			echo json_encode([
+				'status' => 0,
+				'message' => ''
+			]);exit;
+		}
+	}
+
+
+	public function get_multihost_live_users(){
+		if($_SERVER['REQUEST_METHOD'] === 'POST'){
+
+			$user = $this->db->get_where('users', ['id' => $this->input->post('userId')])->row_array();
+			if(empty($user)){
+				echo json_encode([
+					'status' => 0,
+					'message' => 'invalid userId'
+				]);exit;
+			}
+
+			$users = $this->db->get_where('users', ['id !=' => $user['id']])->result_array();
+			if(empty($user)){
+				echo json_encode([
+					'status' => 0,
+					'message' => 'no users list found'
+				]);exit;
+			}
+			
+			$final = [];
+			foreach($users as $userss){
+				$live = $this->db->select('userLive.*')
+								 ->from('userLive')
+								 ->where('userId', $userss['id'])
+								 ->where('hostType', '1')
+								 ->order_by('id', 'desc')
+								 ->get()->row_array();
+
+								 
+								 if(!empty($live)){
+									 
+									 if($live['status'] == 'live'){
+										// print_r($live);
+										$live['username'] = $userss['username'];
+										$live['name'] = $userss['name'];
+										$live['image'] = $userss['image'];
+										$final[] = $live;
+									}
+									
+								 }
+			}
+
+			if(empty($final)){
+				echo json_encode([
+					'status' => 0,
+					'message' => 'no user live found'
+				]);exit;
+			}
+
+			rsort($final);
+
+			echo json_encode([
+				'status' => 1,
+				'message' => 'multihost live list found',
+				'details' => $final
+			]);exit;
+			
+
+		}else{
+
 		}
 	}
 
