@@ -1279,12 +1279,27 @@ class Bango extends CI_Controller
 				$data['liveId'] = $this->input->post('liveId');
 
 				$live = $this->db->get_where('userLive', ['id' => $data['liveId']])->row_array();
+				if(empty($live)){
+					echo json_encode([
+						'status' =>  0,
+						'message' => 'invalid liveId'
+					]);exit;
+				}
 
 				$data['type'] = $live['hostType'];
 			}
 			if (!empty($this->input->post('pkId'))) {
 				$data['pkId'] = $this->input->post('pkId');
 				$data['type'] = 2;
+
+				$pkId = $this->db->get_where('pkbattle', ['id' => $data['pkId']])->row_array();
+				// print_r($pkId);exit;
+				if(empty($pkId)){
+					echo json_encode([
+						'status' => 0,
+						'message' => 'invalid pkId'
+					]);exit;
+				}
 			}
 
 			// ======================= sender part =================================================
@@ -1399,6 +1414,23 @@ class Bango extends CI_Controller
 					->where('giftUserId', $live['userId'])
 					->where('pkId', $this->input->post('pkId'))
 					->get()->row_array();
+
+					$pkcoin = 0;
+					if($this->input->post('giftUserId') == $pkId['userId']){
+
+						$pkcoin = $pkId['userIdGifts'];
+						$pkcoin += $this->input->post('coin');
+
+						$this->db->set('userIdGifts', $pkcoin)->where('id', $pkId['id'])->update('pkbattle');
+					}else{
+						
+						$pkcoin = $pkId['otherUserIdGifts'];
+						$pkcoin += $this->input->post('coin');	
+						$this->db->set('otherUserIdGifts', $pkcoin)->where('id', $pkId['id'])->update('pkbattle');
+						
+					}
+
+					
 			}
 
 
@@ -12532,6 +12564,21 @@ class Bango extends CI_Controller
 					$checkOtherUserId['totalCoinSend'] = $getSender['coin'] ?: '0';
 					$checkOtherUserId['totalCoinGet'] = $getReciver['coin'] ?: '0';
 
+					$agency = $this->db->select('userLiveRequest.*, agencyDetails.agencyName')
+						->from('userLiveRequest')
+						->join('agencyDetails', 'agencyDetails.agencyCode = userLiveRequest.agencyId', 'left')
+						->where('userLiveRequest.userId', $checkOtherUserId['id'])
+						->get()->row_array();
+					if (!empty($agency)) {
+						$checkOtherUserId['agency_name'] = $agency['agencyName'];
+						$checkOtherUserId['agency_code'] = $agency['agencyId'];
+					} else {
+
+						$checkOtherUserId['agency_name'] = "";
+						$checkOtherUserId['agency_code'] = "";
+					}
+
+
 
 					if ($this->input->post('userId') === $this->input->post('otherUserId')) {
 						echo json_encode([
@@ -12548,6 +12595,20 @@ class Bango extends CI_Controller
 						} else {
 							$checkOtherUserId['followStatus'] = FALSE;
 						}
+						$agency = $this->db->select('userLiveRequest.*, agencyDetails.agencyName')
+							->from('userLiveRequest')
+							->join('agencyDetails', 'agencyDetails.agencyCode = userLiveRequest.agencyId', 'left')
+							->where('userLiveRequest.userId', $checkOtherUserId['id'])
+							->get()->row_array();
+						if (!empty($agency)) {
+							$checkOtherUserId['agency_name'] = $agency['agencyName'];
+							$checkOtherUserId['agency_code'] = $agency['agencyId'];
+						} else {
+
+							$checkOtherUserId['agency_name'] = "";
+							$checkOtherUserId['agency_code'] = "";
+						}
+
 
 
 
@@ -13764,11 +13825,11 @@ class Bango extends CI_Controller
 
 				$this->db->set($data)->where('id', $this->input->post('pkId'))->update('pkbattle');
 
-				echo json_encode([
-					'status' => 1,
-					'message' => 'user 1 has left the battle'
-				]);
-				exit;
+				// echo json_encode([
+				// 	'status' => 1,
+				// 	'message' => 'user 1 has left the battle'
+				// ]);
+				// exit;
 			}
 
 			if ($this->input->post('type') == 2) {
@@ -13776,11 +13837,11 @@ class Bango extends CI_Controller
 
 				$this->db->set($data)->where('id', $this->input->post('pkId'))->update('pkbattle');
 
-				echo json_encode([
-					'status' => 1,
-					'message' => 'user 2 has left the battle'
-				]);
-				exit;
+				// echo json_encode([
+				// 	'status' => 1,
+				// 	'message' => 'user 2 has left the battle'
+				// ]);
+				// exit;
 			}
 
 			$data['endDate'] = date('Y-m-d');
@@ -13840,7 +13901,7 @@ class Bango extends CI_Controller
 
 			$update = $this->db->set($data)->where('id', $this->input->post('pkId'))->update('pkbattle');
 
-			$hType['hostType'] = 1;
+			$hType['hostType'] = 0;
 
 			$this->db->set($hType)->where('id', $this->input->post('userLiveId'))->update('userLive');
 			$this->db->set($hType)->where('id', $this->input->post('otherLiveId'))->update('userLive');
@@ -14210,7 +14271,7 @@ class Bango extends CI_Controller
 				->get()->row_array();
 
 
-				// print_r($this->db->last_query());exit;
+			// print_r($this->db->last_query());exit;
 			if (!empty($live['totaltimePerLive'])) {
 				$totalLive = $live['totaltimePerLive'];
 				$data['liveDuration'] = $totalLive;
@@ -18306,6 +18367,121 @@ class Bango extends CI_Controller
 				'message' => 'Method not allowed'
 			]);
 			exit;
+		}
+	}
+
+
+	public function get_highest_sender_on_live(){
+		if($_SERVER['REQUEST_METHOD'] === 'POST'){
+
+			$live = $this->db->get_where('userLive', ['id' => $this->input->post('liveId')])->row_array();
+			if(empty($live)){
+				echo json_encode([
+					'status' => 0,
+					'message' => 'invalid liveId'
+				]);exit;
+			}
+
+			$gifts = $this->db->select_sum('userGiftHistory.coin')
+							    ->select('userId, users.name, users.image, users.username')
+							    ->from('userGiftHistory')
+								->join('users', 'users.id = userGiftHistory.userId', 'left')
+								->where('liveId', $live['id'])
+								->group_by('userId')
+								->order_by('userGiftHistory.coin', 'asc')
+								->get()->result_array();
+
+
+			if(empty($gifts)){
+				echo json_encode([
+					'status' => 0,
+					'message' => 'no gifter found'
+				]);exit;
+			}
+			// print_r($gifts);exit;
+			rsort($gifts);
+
+			echo json_encode([
+				'status' => 1,
+				'message' => 'user found',
+				'details' => $gifts[0]
+			]);exit;
+
+		}else{
+			echo json_encode([
+				'status' => 0,
+				'message' => 'method not allowed'
+			]);exit;
+		}
+	}
+
+	public function get_highest_sender_on_pk_battle(){
+		if($_SERVER['REQUEST_METHOD'] === 'POST'){
+
+			$pkId = $this->db->get_where('pkbattle', ['id' => $this->input->post('pkId')])->row_array();
+			if(empty($pkId)){
+				echo json_encode([
+					'status' => 0,
+					'message' => 'invalid pkId'
+				]);exit;
+			}
+
+			
+			$giftOne = $this->db->select_sum('userGiftHistory.coin')
+							    ->select('userId, users.name, users.image, users.username')
+							    ->from('userGiftHistory')
+								->join('users', 'users.id = userGiftHistory.userId', 'left')
+								->where('pkId', $pkId['id'])
+								->where('giftUserId', $pkId['userId'])
+								->group_by('userId')
+								->order_by('userGiftHistory.coin', 'asc')
+								->get()->result_array();
+			
+			$giftTwo = $this->db->select_sum('userGiftHistory.coin')
+							    ->select('userId, users.name, users.image, users.username')
+							    ->from('userGiftHistory')
+								->join('users', 'users.id = userGiftHistory.userId', 'left')
+								->where('pkId', $pkId['id'])
+								->where('giftUserId', $pkId['otherUserId'])
+								->group_by('userId')
+								->order_by('userGiftHistory.coin', 'asc')
+								->get()->result_array();
+
+
+			if(empty($giftOne)){
+				$message = 'no gifts for user one';
+			}
+			
+			if(empty($giftTwo)){
+				$message = 'no gifts for user two';
+			}
+			
+			if(empty($giftOne) && empty($giftTwo)){
+				$message = 'no gifts found for both the users';
+			}else{
+				$message = 'data found';
+ 			}
+
+			rsort($giftOne);
+			$gift_one = $giftOne[0] ? : null;
+			rsort($giftTwo);
+			$gift_two = $giftTwo[0] ? : null;
+
+			echo json_encode([
+				'status' => 1,
+				'message' => $message,
+				'details' => [
+					'userone' => $gift_one,
+					'usertwo' => $gift_two
+				]
+			]);exit;
+			
+			
+		}else{
+			echo json_encode([
+				'status' => 0,
+				'message' => 'method not allowed'
+			]);exit;
 		}
 	}
 

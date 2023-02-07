@@ -6813,6 +6813,99 @@ class RockStar extends CI_Controller
 		
 	}
 
+	public function get_live_level(){
+		if($_SERVER['REQUEST_METHOD'] === 'POST'){
+
+			$user = $this->db->get_where('users', ['id' => $this->input->post('userId')])->row_array();
+			if(empty($user)){
+				echo json_encode([
+					'status' => 0,
+					'message' => 'invalid userId'
+				]);exit;
+			}
+
+			$date = date('Y-m-d');
+			$live = $this->db->select_sum('minutes')
+							->from('userLive')
+							->where('userId', $user['id'])
+							->where('creatde', $date)
+							->get()->row_array();
+
+			$result = $this->db->select_sum('coin')
+					->select('userId')
+					->from('userGiftHistory')
+					->where('liveId !=', '0')
+					->where('giftUserId', $user['id'])
+					->where('created', $date)
+					->group_by('userId')
+					->get()->result_array();
+
+							// print_r($live);exit;
+
+
+			$total = 0;
+			$count = 0;
+
+			$count = count($result);
+			foreach($result as $results){
+				$total += $results['coin'];
+			}
+
+			// live minute
+			if(!empty($live['minutes'])){
+
+				$min = $live['minutes'] * 5;
+
+				if($min > 900){
+					$data['live_exp'] = 900;
+				}else{
+					$data['live_exp'] += $min;
+				}
+
+			}else{
+				$data['live_exp'] = 0;
+			}
+
+
+			// gifter count
+			$data['gift_exp'] = $count * 5;
+			if($data['gift_exp'] > 200){
+				$data['gift_exp'] = 200; 
+			}
+
+			// coin count
+			if($total > 1200){
+				$data['coin_exp'] = 1200;
+			}
+			$data['coin_exp'] = $total;
+			$data['live_expp'] = $user['liveExp'];
+
+			$levels = $this->db->get('brodcast_level')->result_array();
+
+			foreach($levels as $level){
+				if($data['live_expp'] >= $level['expFrom'] && $data['live_expp'] <= $level['expTo']){
+					$data['level'] = $level['level'];
+					$data['levelFrom'] = $level['expFrom'];
+					$data['levelTo'] = $level['expTo'];
+				}
+			}
+
+			echo json_encode([
+				'status' => 1,
+				'message' => 'details',
+				'details' => $data
+			]);exit;
+
+
+			
+		}else{
+			echo json_encode([
+				'status' => 0,
+				'message' => 'method not allowed'
+			]);exit;
+		}
+	}
+
 	public function daily_live_task(){
 		if($_SERVER['REQUEST_METHOD'] === 'POST'){
 
@@ -7027,6 +7120,7 @@ class RockStar extends CI_Controller
 				$data['created'] = date('Y-m-d H:i:s');
 				$data['status'] = 'live';
 				$data['count'] = $this->input->post('count');
+				$data['creatde'] = date('Y-m-d');
 				$insert = $this->db->insert('userLive', $data);
 				$ids = $this->db->insert_id();
 				if (!empty($insert)) {
@@ -11897,10 +11991,21 @@ class RockStar extends CI_Controller
 			exit;
 		}
 
+		if($live['status'] == 'archived'){
+			$message['success'] = '1';
+			$message['message'] = 'Live Streming Archived Successfully';
+			echo json_encode($message);
+		}
+
 		$data['status'] = 'archived';
 		$data['archivedDate'] = date('Y-m-d H:i:s');
 		$created = $live['created'];
 
+		$archieved = strtotime($data['archivedDate']);
+		$created = strtotime($created);
+		$minutes = round(abs($archieved - $created) / 60, 2);
+
+		$data['minutes'] = $minutes;
 		if ($data['archivedDate'] >= date("Y-m-d H:i:s", strtotime($created . '+30 minutes'))) {
 			$this->give_live_reward($live['userId']);
 		}

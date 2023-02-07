@@ -17147,6 +17147,7 @@ class DateFlue extends CI_Controller
 									->from('userLive')
 									->join('users', 'users.id = userLive.userId', 'left')
 									->where('userId', $userr['id'])
+									->where('hostType', '0')
 									->order_by('userLive.id', 'desc')
 									->get()->row_array();
 
