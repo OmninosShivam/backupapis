@@ -6824,6 +6824,10 @@ class RockStar extends CI_Controller
 				]);exit;
 			}
 
+			$data['username'] = $user['username'];
+			$data['name'] = $user['name'];
+			$data['image'] = $user['image'];
+
 			$date = date('Y-m-d');
 			$live = $this->db->select_sum('minutes')
 							->from('userLive')
@@ -11218,6 +11222,81 @@ class RockStar extends CI_Controller
 			}
 		}
 		echo json_encode($message);
+	}
+
+	protected function check_friends($userId, $other){
+
+		$check = $this->db->get_where('userFollow', ['userId' => $userId, 'followingUserId' => $other])->row_array();
+		if(!!$check){
+
+			$check_other = $this->db->get_where('userFollow', ['userId' => $other, 'followingUserId' => $userId])->row_array();
+			if(!!$check_other){
+				return true;
+			}else{
+				return false;
+			}
+
+		}else{
+			return false;
+		}
+		
+ 	}
+
+	public function get_live_friends_list(){
+		if($_SERVER['REQUEST_METHOD'] === 'POST'){
+
+			$me = $this->db->get_where('users', ['id' => $this->input->post('userId')])->row_array();
+			if(empty($me)){
+				echo json_encode([
+					'status' => 0,
+					'message' => 'invalid userId'
+				]);exit;
+			}
+
+			$users = $this->db->select('*')->from('users')->where('id !=', $user['id'])->get()->result_array();
+			if(empty($users)){
+				echo json_encode([
+					'status' => 0,
+					'message' => 'no users found'
+				]);exit;
+			}
+
+			$final = [];
+			foreach($users  as $user){
+				if($this->check_friends($me['id'], $user['id'])){
+
+					$live = $this->db->select('userLive.created, userLive.*, users.name, users.username, users.image')
+									 ->from('userLive')
+									 ->join('users', 'users.id = userLive.userId', 'left')
+									 ->where('userId', $user['id'])
+									 ->order_by('id', 'desc')
+									 ->get()->row_array();
+
+									//  print_r($live);echo"..";
+					$final[] = $live;
+
+				}
+			}
+
+			if(empty($final)){
+				echo json_encode([
+					'status' => 0,
+					'message' => 'no friends found'
+				]);exit;
+			}
+
+			echo json_encode([
+				'status' => 1,
+				'message' => 'live friends found',
+				'details' => $final
+			]);exit;
+
+		}else{
+			echo json_encode([
+				'status' => 0,
+				'message' => 'method not allowed'
+			]);exit;
+		}
 	}
 
 	public function getFollowUsers()

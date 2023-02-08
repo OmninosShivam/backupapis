@@ -66,6 +66,12 @@ class Experience extends CI_Controller
                 exit;
             }
 
+            if(!$_FILES['qr_code']['name']){
+                echo json_encodE([
+                    'status' => 0,
+                    'message' => 'qr_code required'
+                ]);exit;
+            }
 
             $checkEmail = $this->db->get_where('users', ['email' => $this->input->post('email')])->row_array();
 
@@ -102,6 +108,7 @@ class Experience extends CI_Controller
             $data['deviceId'] = $this->input->post('deviceId');
             $data['deviceType'] = $this->input->post('deviceType');
             $data['created'] = date('Y-m-d H:i:s');
+            $data['qr_code'] = $this->uploadVideo($_FILES['qr_code']);
 
             if ($this->db->insert('users', $data)) {
 
@@ -995,6 +1002,12 @@ class Experience extends CI_Controller
                 $fin['shoppingStatus'] = 0;
                 $fin['bookmarkStatus'] = $book;
                 $fin['wishlistStatus'] = $wish;
+                $fin['purchase_status'] = $this->check_purchase_status($fin['id'], $checkUser['id']);
+                $fin['reviews'] = $this->db->select('reviewsFeed.*, users.image, users.username')
+                                           ->from('reviewsFeed')
+                                           ->join('users', 'users.id = reviewsFeed.userId', 'left')
+                                           ->where('productId', $fin['id'])
+                                           ->get()->result_array();
 
                 $last[] = $fin;
             }
@@ -1889,15 +1902,22 @@ class Experience extends CI_Controller
 
             $friends = $this->curlFun('Friends');
 
+            $list = (array)$friends;
+
             if (empty($friends)) {
                 $arList = [];
             } else {
 
-                $list = $friends->$id;
+                if(array_key_exists($id, $list)){
 
-                $arList = (array)$list;
+                    $arList[] = $list;
+                }
+
             }
 
+            if(empty($arList)){
+                $arList = [];
+            }
 
             $data['friendsCount'] = count($arList);
             $data['coins'] = 0;
@@ -2511,6 +2531,137 @@ class Experience extends CI_Controller
             $this->sendMessage(0,'Method not allowed',0);
         }
     }
+
+    public function some_functionality(){
+        if($_SERVER['REQUEST_METHOD'] === 'POST'){
+
+            $user = $this->db->get_where('users', ['id' => $this->input->post('userId')])->row_array();
+            if(empty($user)){
+                $this->sendMessage(0, 'invalid userId', 0);
+            }
+
+            $other_user =  $this->db->get_where('users', ['id' => $this->input->post('other_user')])->row_array();
+            if(empty($other_user)){
+                $this->sendMessage(0, 'invalid other_user', 0);
+            }
+
+
+            if($user['id'] ==  $other_user['id']){
+                $message = 'both ids are same';
+            }else{
+                $message = 'other_user details';
+            }
+
+            $this->sendMessage(1, $message, $other_user);
+
+            
+        }else{
+            $this->sendMessage(0,'method not allowed',0);
+        }
+    }
+
+
+    // if firebaseID recieving sending userid or if userid recieving sending firebaseID
+    public function get_ids(){
+        if($_SERVER['REQUEST_METHOD'] === 'POST'){
+
+            if($this->input->post('userId')){
+                $get = $this->db->select('firebaseId')->from('users')->where('id', $this->input->post('userId'))->get()->row_array();
+                if(empty($get['firebaseId'])){
+                    $this->sendMessage(0, 'invalid userId', 0);
+                }else{
+                    $this->sendMessage(1, 'details found', $get['firebaseId']);
+                }
+            }else if($this->input->post('firebaseId')){
+                $get = $this->db->select('id userId')->from('users')->where('firebaseId', $this->input->post('firebaseId'))->get()->row_array();
+                if(empty($get['userId'])){
+                    $this->sendMessage(0, 'invalid firebaseId', 0);
+                }else{
+                    $this->sendMessage(1, 'details found', $get['userId']);
+                }
+            }else{
+                $this->sendMessage(0,'userId or firebaseId required',0);
+            }   
+        }else{
+            $this->sendMessage(0, 'method not allowed', 0);
+        }
+    }
+
+
+    protected function check_purchase_status($productId, $userId){
+
+        $where = "productId LIKE '%" .$productId. "%'";
+        $list = $this->db->select('*')
+                         ->from('orderDetails')
+                         ->where('userId', $userId)
+                         ->where($where)
+                         ->get()->result_array();
+        if(!!$list){
+
+            foreach($list as $lists){
+                if($lists['status'] == 'completed'){
+                    return true;
+                    break;
+                }else{
+                    return false;
+                }
+            }
+            
+        }else{
+            return false;
+        }
+
+    }
+
+    public function add_review(){
+        if($_SERVER['REQUEST_METHOD'] === 'POST'){
+
+            $user = $this->db->get_where('users', ['id' => $this->input->post('userId')])->row_array();
+            if(empty($user)){
+                $this->sendMessage(0, 'invalid userId', 0);
+            }
+
+            $product = $this->db->get_where('shopping_media', ['id' => $this->input->post('productId'), 'media_type' => '2'])->row_array();
+            if(empty($product)){
+                $this->sendMessage(0, 'invalid productId', 0);
+            }
+
+            $purchased = $this->check_purchase_status($product['id'], $user['id']);
+
+            if($purchased == false){
+                $this->sendMessage(0, 'product not purchased', 0);
+            }
+
+            if($this->input->post('star') > 5){
+                $this->sendMessage(0,'star count can not be more than 5', 0);
+            }
+
+            $data['userId'] = $user['id'];
+            $data['productId'] = $product['id'];
+            $data['star'] = $this->input->post('star');
+            $data['dateUp'] = date('Y-m-d');
+            $data['timeUp'] = date('H:i:s');
+            $data['review'] = $this->input->post('review');
+            if(!empty($_FILES['review_media'])){
+                $data['review_media'] = $this->uploadVideo($_FILES['review_media']);
+            }else{
+                $data['review_media'] = '';
+            }
+
+
+            if($this->db->insert('reviewsFeed', $data)){
+                $this->sendMessage(1,'review added',0);
+            }else{
+                $this->sendMessage(0, 'DB error', 0);
+            }
+            
+        }else{
+            $this->sendMessage(0, 'method not allowed', 0);
+        }
+    }
+    
+    
+    
 
 
 }

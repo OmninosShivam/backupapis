@@ -18433,6 +18433,7 @@ class Bango extends CI_Controller
 								->join('users', 'users.id = userGiftHistory.userId', 'left')
 								->where('pkId', $pkId['id'])
 								->where('giftUserId', $pkId['userId'])
+								->limit(3)
 								->group_by('userId')
 								->order_by('userGiftHistory.coin', 'asc')
 								->get()->result_array();
@@ -18443,6 +18444,7 @@ class Bango extends CI_Controller
 								->join('users', 'users.id = userGiftHistory.userId', 'left')
 								->where('pkId', $pkId['id'])
 								->where('giftUserId', $pkId['otherUserId'])
+								->limit(3)
 								->group_by('userId')
 								->order_by('userGiftHistory.coin', 'asc')
 								->get()->result_array();
@@ -18463,9 +18465,9 @@ class Bango extends CI_Controller
  			}
 
 			rsort($giftOne);
-			$gift_one = $giftOne[0] ? : null;
+			$gift_one = $giftOne ? : null;
 			rsort($giftTwo);
-			$gift_two = $giftTwo[0] ? : null;
+			$gift_two = $giftTwo ? : null;
 
 			echo json_encode([
 				'status' => 1,
