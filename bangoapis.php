@@ -1279,11 +1279,12 @@ class Bango extends CI_Controller
 				$data['liveId'] = $this->input->post('liveId');
 
 				$live = $this->db->get_where('userLive', ['id' => $data['liveId']])->row_array();
-				if(empty($live)){
+				if (empty($live)) {
 					echo json_encode([
 						'status' =>  0,
 						'message' => 'invalid liveId'
-					]);exit;
+					]);
+					exit;
 				}
 
 				$data['type'] = $live['hostType'];
@@ -1294,11 +1295,12 @@ class Bango extends CI_Controller
 
 				$pkId = $this->db->get_where('pkbattle', ['id' => $data['pkId']])->row_array();
 				// print_r($pkId);exit;
-				if(empty($pkId)){
+				if (empty($pkId)) {
 					echo json_encode([
 						'status' => 0,
 						'message' => 'invalid pkId'
-					]);exit;
+					]);
+					exit;
 				}
 			}
 
@@ -1375,14 +1377,34 @@ class Bango extends CI_Controller
 
 			$insert = $this->db->insert('userGiftHistory', $data);
 
+			if (!empty($this->input->post('liveId'))) {
 
-			$countStar = $this->db->select_sum('coin')
-				->from('userGiftHistory')
-				->where('giftUserId', $live['userId'])
-				->where('created', date('Y-m-d'))
-				->get()->row_array();
+				$countStar = $this->db->select_sum('coin')
+					->from('userGiftHistory')
+					->where('giftUserId', $live['giftUserId'])
+					->where('liveId', $this->input->post('liveId'))
+					// ->where('created', date('Y-m-d'))
+					->get()->row_array();
 
-			$str = $countStar['coin'];
+				$strstatus = $this->db->select_sum('coin')
+					->from('userGiftHistory')
+					->where('liveId', $data['liveId'])
+					->get()->row_array();
+			} else {
+				$countStar = $this->db->select_sum('coin')
+					->from('userGiftHistory')
+					->where('giftUserId', $live['giftUserId'])
+					->where('created', date('Y-m-d'))
+					->get()->row_array();
+
+				$strstatus = $this->db->select_sum('coin')
+					->from('userGiftHistory')
+					->where('pkId', $data['pkId'])
+					->get()->row_array();
+			}
+
+
+			$str = $strstatus['coin'] ?: 0;
 			$strStatus = '0';
 
 			if ($str < 10000) {
@@ -1403,7 +1425,7 @@ class Bango extends CI_Controller
 			if (!empty($this->input->post('liveId'))) {
 				$recieveCoins = $this->db->select_sum('coin')
 					->from('userGiftHistory')
-					->where('giftUserId', $live['userId'])
+					->where('giftUserId', $live['giftUserId'])
 					->where('liveId', $this->input->post('liveId'))
 					->get()->row_array();
 			}
@@ -1411,29 +1433,24 @@ class Bango extends CI_Controller
 			if (!empty($this->input->post('pkId'))) {
 				$recieveCoins = $this->db->select_sum('coin')
 					->from('userGiftHistory')
-					->where('giftUserId', $live['userId'])
+					->where('giftUserId', $live['giftUserId'])
 					->where('pkId', $this->input->post('pkId'))
 					->get()->row_array();
 
-					$pkcoin = 0;
-					if($this->input->post('giftUserId') == $pkId['userId']){
+				$pkcoin = 0;
+				if ($this->input->post('giftUserId') == $pkId['userId']) {
 
-						$pkcoin = $pkId['userIdGifts'];
-						$pkcoin += $this->input->post('coin');
+					$pkcoin = $pkId['userIdGifts'];
+					$pkcoin += $this->input->post('coin');
 
-						$this->db->set('userIdGifts', $pkcoin)->where('id', $pkId['id'])->update('pkbattle');
-					}else{
-						
-						$pkcoin = $pkId['otherUserIdGifts'];
-						$pkcoin += $this->input->post('coin');	
-						$this->db->set('otherUserIdGifts', $pkcoin)->where('id', $pkId['id'])->update('pkbattle');
-						
-					}
+					$this->db->set('userIdGifts', $pkcoin)->where('id', $pkId['id'])->update('pkbattle');
+				} else {
 
-					
+					$pkcoin = $pkId['otherUserIdGifts'];
+					$pkcoin += $this->input->post('coin');
+					$this->db->set('otherUserIdGifts', $pkcoin)->where('id', $pkId['id'])->update('pkbattle');
+				}
 			}
-
-
 
 			$outMess['myStar'] =  '' . (int)$countStar['coin'] . '';
 			$outMess['coinsRecieved'] = $recieveCoins['coin'];
@@ -8413,99 +8430,103 @@ class Bango extends CI_Controller
 
 
 	// will get the live host list of single live and multi live
-	public function get_live_host_list(){
-		if($_SERVER['REQUEST_METHOD'] === 'POST'){
+	public function get_live_host_list()
+	{
+		if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 			$user = $this->db->get_where('users', ['id' => $this->input->post('userId')])->row_array();
-			if(empty($user)){
+			if (empty($user)) {
 				echo json_encode([
 					'status' => 0,
 					'message' => 'invalid userId'
-				]);exit;
+				]);
+				exit;
 			}
 
-			if(empty($this->input->post('country'))){
+			if (empty($this->input->post('country'))) {
 				$users = $this->db->select('users.*, users.id usersid')->from('users')->where('id !=', $user['id'])->get()->result_array();
-			}else{
+			} else {
 				$users = $this->db->select('users.*, users.id usersid')->from('users')->where('id !=', $user['id'])->where('country', trim(ucfirst($this->input->post('country'))))->get()->result_array();
 			}
-			if(empty($users)){
+			if (empty($users)) {
 				echo json_encode([
 					'status' => 0,
 					'message' => 'no users found'
-				]);exit;
+				]);
+				exit;
 			}
 
 
 			$final = [];
-			foreach($users as $userss){
+			foreach ($users as $userss) {
 				$get = $this->db->select('userLive.*')
-								->from('userLive')
-								->where('userId', $userss['id'])
-								->group_start()
-								->or_where('hostType', '0')
-								->or_where('hostType', '1')
-								->group_end()
-								->order_by('id', 'desc')
-								->get()->row_array();
+					->from('userLive')
+					->where('userId', $userss['id'])
+					->group_start()
+					->or_where('hostType', '0')
+					->or_where('hostType', '1')
+					->group_end()
+					->order_by('id', 'desc')
+					->get()->row_array();
 
-								if(!!$get){
-									if($get['status'] == 'live'){
-										$get['username'] = $userss['username'];
-										$get['name'] = $userss['name'];
-										$get['image'] = $userss['image'];
-										$get['posterImage'] = $userss['posterImage'];
+				if (!!$get) {
+					if ($get['status'] == 'live') {
+						$get['username'] = $userss['username'];
+						$get['name'] = $userss['name'];
+						$get['image'] = $userss['image'];
+						$get['posterImage'] = $userss['posterImage'];
 
-										$get['star_count'] = $this->db->select_sum('coin')
-																	  ->from('userGiftHistory')
-																	  ->where('liveId', $get['id'])
-																	  ->get()->row_array();
-										$get['followstatus'] = false;
-										$follow = $this->db->get_where('userFollow', ['userId' => $user['id'], 'followingUserId' => $userss['id']])->row_array();
+						$get['star_count'] = $this->db->select_sum('coin')
+							->from('userGiftHistory')
+							->where('liveId', $get['id'])
+							->get()->row_array();
+						$get['followstatus'] = false;
+						$follow = $this->db->get_where('userFollow', ['userId' => $user['id'], 'followingUserId' => $userss['id']])->row_array();
 
-										if ($userss['myAdminFrame'] != '0' && $userss['myVipFrame'] == '0' && $userss['myFrame'] == '0') {
-											$gett = $this->db->get_where('userAdminFrame', ['id' => $userss['myAdminFrame']])->row_array();
-											$get['myAppliedFrame'] = $gett['frame'];
-										} elseif ($userss['myAdminFrame'] == '0' && $userss['myVipFrame'] != '0' && $userss['myFrame'] == '0') {
-											$gett = $this->db->get_where('vips', ['id' => $userss['myVipFrame']])->row_array();
-											$get['myAppliedFrame'] = $gett['framesvg'];
-										} elseif ($userss['myAdminFrame'] == '0' && $userss['myVipFrame'] == '0' && $userss['myFrame'] != '0') {
-											$gett = $this->db->get_where('framesPerLevel', ['id' => $userss['myFrame']])->row_array();
-											$get['myAppliedFrame'] = $gett['image'];
-										} else {
-											$get['myAppliedFrame'] = null;
-										}
+						if ($userss['myAdminFrame'] != '0' && $userss['myVipFrame'] == '0' && $userss['myFrame'] == '0') {
+							$gett = $this->db->get_where('userAdminFrame', ['id' => $userss['myAdminFrame']])->row_array();
+							$get['myAppliedFrame'] = $gett['frame'];
+						} elseif ($userss['myAdminFrame'] == '0' && $userss['myVipFrame'] != '0' && $userss['myFrame'] == '0') {
+							$gett = $this->db->get_where('vips', ['id' => $userss['myVipFrame']])->row_array();
+							$get['myAppliedFrame'] = $gett['framesvg'];
+						} elseif ($userss['myAdminFrame'] == '0' && $userss['myVipFrame'] == '0' && $userss['myFrame'] != '0') {
+							$gett = $this->db->get_where('framesPerLevel', ['id' => $userss['myFrame']])->row_array();
+							$get['myAppliedFrame'] = $gett['image'];
+						} else {
+							$get['myAppliedFrame'] = null;
+						}
 
-										$str = $get['star_count'];
-										$strStatus = '0';
-							
-										if ($str < 10000) {
-											$strStatus = '0';
-										} else if ($str < 50000) {
-											$strStatus = '1';
-										} else if ($str < 200000) {
-											$strStatus = '2';
-										} else if ($str < 1000000) {
-											$strStatus = "3";
-										} else if ($str < 2000000) {
-											$strStatus = "4";
-										} else {
-											$strStatus = "5";
-										}
+						$str = $get['star_count'];
+						$strStatus = '0';
 
-										$get['star_status'] = $strStatus;
-							
-										
-										$final[] = $get;
-									}
-								}
+						if ($str < 10000) {
+							$strStatus = '0';
+						} else if ($str < 50000) {
+							$strStatus = '1';
+						} else if ($str < 200000) {
+							$strStatus = '2';
+						} else if ($str < 1000000) {
+							$strStatus = "3";
+						} else if ($str < 2000000) {
+							$strStatus = "4";
+						} else {
+							$strStatus = "5";
+						}
+
+						$get['star_status'] = $strStatus;
+
+
+						$final[] = $get;
+					}
+				}
 			}
 
-			if(empty($final)){
+			if (empty($final)) {
 				echo json_encode([
 					'status' => 0,
 					'message' => 'no users found'
-				]);exit;
+				]);
+				exit;
 			}
 
 			rsort($final);
@@ -8514,109 +8535,112 @@ class Bango extends CI_Controller
 				'status' => 1,
 				'message' => 'live user list found',
 				'details' => $final
-			]);exit;
-			
-			
-		}else{
+			]);
+			exit;
+		} else {
 			echo json_encode([
 				'status' => 0,
 				'message' => 'method not allowed'
-			]);exit;
+			]);
+			exit;
 		}
 	}
 
 	// will get the live host list of audio type
-	public function get_live_host_list_audio(){
-		if($_SERVER['REQUEST_METHOD'] === 'POST'){
+	public function get_live_host_list_audio()
+	{
+		if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 			$user = $this->db->get_where('users', ['id' => $this->input->post('userId')])->row_array();
-			if(empty($user)){
+			if (empty($user)) {
 				echo json_encode([
 					'status' => 0,
 					'message' => 'invalid userId'
-				]);exit;
+				]);
+				exit;
 			}
 
-			if(empty($this->input->post('country'))){
+			if (empty($this->input->post('country'))) {
 				$users = $this->db->select('*')->from('users')->where('id !=', $user['id'])->get()->result_array();
-			}else{
+			} else {
 				$users = $this->db->select('*')->from('users')->where('id !=', $user['id'])->where('country', trim(ucfirst($this->input->post('country'))))->get()->result_array();
 			}
-			if(empty($users)){
+			if (empty($users)) {
 				echo json_encode([
 					'status' => 0,
 					'message' => 'no users found'
-				]);exit;
+				]);
+				exit;
 			}
 
 
 			$final = [];
-			foreach($users as $userss){
+			foreach ($users as $userss) {
 				$get = $this->db->select('userLive.*')
-								->from('userLive')
-								->where('userId', $userss['id'])
-								->where('hostType', '3')
-								->order_by('id', 'desc')
-								->get()->row_array();
+					->from('userLive')
+					->where('userId', $userss['id'])
+					->where('hostType', '3')
+					->order_by('id', 'desc')
+					->get()->row_array();
 
-								if(!!$get){
-									if($get['status'] == 'live'){
-										$get['username'] = $userss['username'];
-										$get['name'] = $userss['name'];
-										$get['image'] = $userss['image'];
-										$get['posterImage'] = $userss['posterImage'];
+				if (!!$get) {
+					if ($get['status'] == 'live') {
+						$get['username'] = $userss['username'];
+						$get['name'] = $userss['name'];
+						$get['image'] = $userss['image'];
+						$get['posterImage'] = $userss['posterImage'];
 
-										$get['star_count'] = $this->db->select_sum('coin')
-																	  ->from('userGiftHistory')
-																	  ->where('liveId', $get['id'])
-																	  ->get()->row_array();
-										$get['followstatus'] = false;
-										$follow = $this->db->get_where('userFollow', ['userId' => $user['id'], 'followingUserId' => $userss['id']])->row_array();
+						$get['star_count'] = $this->db->select_sum('coin')
+							->from('userGiftHistory')
+							->where('liveId', $get['id'])
+							->get()->row_array();
+						$get['followstatus'] = false;
+						$follow = $this->db->get_where('userFollow', ['userId' => $user['id'], 'followingUserId' => $userss['id']])->row_array();
 
-										if ($userss['myAdminFrame'] != '0' && $userss['myVipFrame'] == '0' && $userss['myFrame'] == '0') {
-											$gett = $this->db->get_where('userAdminFrame', ['id' => $userss['myAdminFrame']])->row_array();
-											$get['myAppliedFrame'] = $gett['frame'];
-										} elseif ($userss['myAdminFrame'] == '0' && $userss['myVipFrame'] != '0' && $userss['myFrame'] == '0') {
-											$gett = $this->db->get_where('vips', ['id' => $userss['myVipFrame']])->row_array();
-											$get['myAppliedFrame'] = $gett['framesvg'];
-										} elseif ($userss['myAdminFrame'] == '0' && $userss['myVipFrame'] == '0' && $userss['myFrame'] != '0') {
-											$gett = $this->db->get_where('framesPerLevel', ['id' => $userss['myFrame']])->row_array();
-											$get['myAppliedFrame'] = base_url() . $gett['image'];
-										} else {
-											$get['myAppliedFrame'] = null;
-										}
+						if ($userss['myAdminFrame'] != '0' && $userss['myVipFrame'] == '0' && $userss['myFrame'] == '0') {
+							$gett = $this->db->get_where('userAdminFrame', ['id' => $userss['myAdminFrame']])->row_array();
+							$get['myAppliedFrame'] = $gett['frame'];
+						} elseif ($userss['myAdminFrame'] == '0' && $userss['myVipFrame'] != '0' && $userss['myFrame'] == '0') {
+							$gett = $this->db->get_where('vips', ['id' => $userss['myVipFrame']])->row_array();
+							$get['myAppliedFrame'] = $gett['framesvg'];
+						} elseif ($userss['myAdminFrame'] == '0' && $userss['myVipFrame'] == '0' && $userss['myFrame'] != '0') {
+							$gett = $this->db->get_where('framesPerLevel', ['id' => $userss['myFrame']])->row_array();
+							$get['myAppliedFrame'] = base_url() . $gett['image'];
+						} else {
+							$get['myAppliedFrame'] = null;
+						}
 
-										$str = $get['star_count'];
-										$strStatus = '0';
-							
-										if ($str < 10000) {
-											$strStatus = '0';
-										} else if ($str < 50000) {
-											$strStatus = '1';
-										} else if ($str < 200000) {
-											$strStatus = '2';
-										} else if ($str < 1000000) {
-											$strStatus = "3";
-										} else if ($str < 2000000) {
-											$strStatus = "4";
-										} else {
-											$strStatus = "5";
-										}
+						$str = $get['star_count'];
+						$strStatus = '0';
 
-										$get['star_status'] = $strStatus;
-										
-										
-										$final[] = $get;
-										
-									}
-								}
+						if ($str < 10000) {
+							$strStatus = '0';
+						} else if ($str < 50000) {
+							$strStatus = '1';
+						} else if ($str < 200000) {
+							$strStatus = '2';
+						} else if ($str < 1000000) {
+							$strStatus = "3";
+						} else if ($str < 2000000) {
+							$strStatus = "4";
+						} else {
+							$strStatus = "5";
+						}
+
+						$get['star_status'] = $strStatus;
+
+
+						$final[] = $get;
+					}
+				}
 			}
 
-			if(empty($final)){
+			if (empty($final)) {
 				echo json_encode([
 					'status' => 0,
 					'message' => 'no users found'
-				]);exit;
+				]);
+				exit;
 			}
 
 			rsort($final);
@@ -8625,14 +8649,14 @@ class Bango extends CI_Controller
 				'status' => 1,
 				'message' => 'live user list found',
 				'details' => $final
-			]);exit;
-			
-			
-		}else{
+			]);
+			exit;
+		} else {
 			echo json_encode([
 				'status' => 0,
 				'message' => 'method not allowed'
-			]);exit;
+			]);
+			exit;
 		}
 	}
 
@@ -11779,6 +11803,12 @@ class Bango extends CI_Controller
 						$get['vip_details'] = $vip;
 					}
 
+					$getUserLiveStatus = $this->db->select('status as UserLiveStatus')->from('userLive')->where('id', $list['followingUserId'])->get()->row_array();
+					if (!!$getUserLiveStatus) {
+						$get['UserLiveStatus'] = $getUserLiveStatus['UserLiveStatus'];
+					} else {
+						$get['UserLiveStatus'] = "";
+					}
 
 					$main[] = $get;
 				}
@@ -12740,7 +12770,7 @@ class Bango extends CI_Controller
 						$checkOtherUserId['myAppliedFrame'] = $get['framesvg'];
 					} elseif ($checkOtherUserId['myAdminFrame'] == '0' && $checkOtherUserId['myVipFrame'] == '0' && $checkOtherUserId['myFrame'] != '0') {
 						$get = $this->db->get_where('framesPerLevel', ['id' => $checkOtherUserId['myFrame']])->row_array();
-						$checkOtherUserId['myAppliedFrame'] = base_url() . $get['image'];
+						$checkOtherUserId['myAppliedFrame'] = $get['image'];
 					} else {
 						$checkOtherUserId['myAppliedFrame'] = null;
 					}
@@ -13620,6 +13650,12 @@ class Bango extends CI_Controller
 					foreach ($getFollowers as $key => $list) {
 						$getuser = $this->db->get_where('users', ['id' => $list['userId']])->row_array();
 
+						$getUserLiveStatus = $this->db->select('status as UserLiveStatus')->from('userLive')->where('id', $list['userId'])->get()->row_array();
+						if (!!$getUserLiveStatus) {
+							$getuser['UserLiveStatus'] = $getUserLiveStatus['UserLiveStatus'];
+						} else {
+							$getuser['UserLiveStatus'] = "";
+						}
 						$getFollowers[$key] = $getuser;
 					}
 
@@ -13669,7 +13705,12 @@ class Bango extends CI_Controller
 					foreach ($getFollowers as $key => $list) {
 
 						$getuser = $this->db->get_where('users', ['id' => $list['followingUserId']])->row_array();
-
+						$getUserLiveStatus = $this->db->select('status as UserLiveStatus')->from('userLive')->where('id', $list['followingUserId'])->get()->row_array();
+						if (!!$getUserLiveStatus) {
+							$getuser['UserLiveStatus'] = $getUserLiveStatus['UserLiveStatus'];
+						} else {
+							$getuser['UserLiveStatus'] = "";
+						}
 						$getFollowStatus = $this->db->get_where('userFollow', ['userId' => $this->input->post('userId'), 'followingUserId' => $list['followingUserId']])->row_array();
 
 						if (!!$getFollowStatus) {
@@ -13741,6 +13782,12 @@ class Bango extends CI_Controller
 							// ->where('userFollow.status', '1')
 							->get()->row_array();
 
+						$getUserLiveStatus = $this->db->select('status as UserLiveStatus')->from('userLive')->where('id', $list['followingUserId'])->get()->row_array();
+						if (!!$getUserLiveStatus) {
+							$checkFriend['UserLiveStatus'] = $getUserLiveStatus['UserLiveStatus'];
+						} else {
+							$checkFriend['UserLiveStatus'] = "";
+						}
 						if (!!$checkFriend) {
 
 							$friend[] = $checkFriend;
@@ -16162,7 +16209,7 @@ class Bango extends CI_Controller
 				exit;
 			}
 
-			$myCoins = $checkUser['coin'];
+			$myCoins = $checkUser['monthlyCoins'];
 			$purchasedCoins = $checkUser['purchasedCoin'];
 
 			// if ($checkUser['host_status'] == 2) {
@@ -18372,51 +18419,47 @@ class Bango extends CI_Controller
 			$giftdata['created'] = date('Y-m-d');
 
 			$last_count_of_gift = $this->db->select('userGiftHistory.*')
-			->from('userGiftHistory')
-			->where('giftId', $giftdata['giftId'])
-			->order_by('id', 'desc')
-			->get()->row_array();
+				->from('userGiftHistory')
+				->where('giftId', $giftdata['giftId'])
+				->order_by('id', 'desc')
+				->get()->row_array();
 
-			if(empty($last_count_of_gift)){
-			 $giftdata['count'] = 1;
-			}else{
-			 $giftdata['count'] = $last_count_of_gift['count'];
-			 $giftdata['count'] += $count;
+			if (empty($last_count_of_gift)) {
+				$giftdata['count'] = 1;
+			} else {
+				$giftdata['count'] = $last_count_of_gift['count'];
+				$giftdata['count'] += $count;
 			}
 
-			if($giftdata['count'] == 250){
+			if ($giftdata['count'] == 250) {
 
 				$multi = $per * 250;
 
 				$am = (5 / 100) * $multi;
 
 				$luckCount = 1;
-
-			}else if($giftdata['count'] == 500){
+			} else if ($giftdata['count'] == 500) {
 
 				$multi = $per * 500;
 
 				$am = (15 / 100) * $multi;
 
 				$luckCount = 1;
-
-			}else if($giftdata['count'] == 750){
+			} else if ($giftdata['count'] == 750) {
 
 				$multi = $per * 750;
 
 				$am = (5 / 100) * $multi;
 
 				$luckCount = 1;
-
-			}else if($giftdata['count'] == 999){
+			} else if ($giftdata['count'] == 999) {
 
 				$multi = $per * 999;
 
 				$am = (30 / 100) * $multi;
 
 				$luckCount = 1;
-				
-			}else{
+			} else {
 				$giftdata['count'] = 0;
 			}
 
@@ -18641,32 +18684,35 @@ class Bango extends CI_Controller
 	}
 
 
-	public function get_highest_sender_on_live(){
-		if($_SERVER['REQUEST_METHOD'] === 'POST'){
+	public function get_highest_sender_on_live()
+	{
+		if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 			$live = $this->db->get_where('userLive', ['id' => $this->input->post('liveId')])->row_array();
-			if(empty($live)){
+			if (empty($live)) {
 				echo json_encode([
 					'status' => 0,
 					'message' => 'invalid liveId'
-				]);exit;
+				]);
+				exit;
 			}
 
 			$gifts = $this->db->select_sum('userGiftHistory.coin')
-							    ->select('userId, users.name, users.image, users.username')
-							    ->from('userGiftHistory')
-								->join('users', 'users.id = userGiftHistory.userId', 'left')
-								->where('liveId', $live['id'])
-								->group_by('userId')
-								->order_by('userGiftHistory.coin', 'asc')
-								->get()->result_array();
+				->select('userId, users.name, users.image, users.username')
+				->from('userGiftHistory')
+				->join('users', 'users.id = userGiftHistory.userId', 'left')
+				->where('liveId', $live['id'])
+				->group_by('userId')
+				->order_by('userGiftHistory.coin', 'asc')
+				->get()->result_array();
 
 
-			if(empty($gifts)){
+			if (empty($gifts)) {
 				echo json_encode([
 					'status' => 0,
 					'message' => 'no gifter found'
-				]);exit;
+				]);
+				exit;
 			}
 			// print_r($gifts);exit;
 			rsort($gifts);
@@ -18675,69 +18721,72 @@ class Bango extends CI_Controller
 				'status' => 1,
 				'message' => 'user found',
 				'details' => $gifts[0]
-			]);exit;
-
-		}else{
+			]);
+			exit;
+		} else {
 			echo json_encode([
 				'status' => 0,
 				'message' => 'method not allowed'
-			]);exit;
+			]);
+			exit;
 		}
 	}
 
-	public function get_highest_sender_on_pk_battle(){
-		if($_SERVER['REQUEST_METHOD'] === 'POST'){
+	public function get_highest_sender_on_pk_battle()
+	{
+		if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 			$pkId = $this->db->get_where('pkbattle', ['id' => $this->input->post('pkId')])->row_array();
-			if(empty($pkId)){
+			if (empty($pkId)) {
 				echo json_encode([
 					'status' => 0,
 					'message' => 'invalid pkId'
-				]);exit;
+				]);
+				exit;
 			}
 
-			
+
 			$giftOne = $this->db->select_sum('userGiftHistory.coin')
-							    ->select('userId, users.name, users.image, users.username')
-							    ->from('userGiftHistory')
-								->join('users', 'users.id = userGiftHistory.userId', 'left')
-								->where('pkId', $pkId['id'])
-								->where('giftUserId', $pkId['userId'])
-								->limit(3)
-								->group_by('userId')
-								->order_by('userGiftHistory.coin', 'asc')
-								->get()->result_array();
-			
+				->select('userId, users.name, users.image, users.username')
+				->from('userGiftHistory')
+				->join('users', 'users.id = userGiftHistory.userId', 'left')
+				->where('pkId', $pkId['id'])
+				->where('giftUserId', $pkId['userId'])
+				->limit(3)
+				->group_by('userId')
+				->order_by('userGiftHistory.coin', 'asc')
+				->get()->result_array();
+
 			$giftTwo = $this->db->select_sum('userGiftHistory.coin')
-							    ->select('userId, users.name, users.image, users.username')
-							    ->from('userGiftHistory')
-								->join('users', 'users.id = userGiftHistory.userId', 'left')
-								->where('pkId', $pkId['id'])
-								->where('giftUserId', $pkId['otherUserId'])
-								->limit(3)
-								->group_by('userId')
-								->order_by('userGiftHistory.coin', 'asc')
-								->get()->result_array();
+				->select('userId, users.name, users.image, users.username')
+				->from('userGiftHistory')
+				->join('users', 'users.id = userGiftHistory.userId', 'left')
+				->where('pkId', $pkId['id'])
+				->where('giftUserId', $pkId['otherUserId'])
+				->limit(3)
+				->group_by('userId')
+				->order_by('userGiftHistory.coin', 'asc')
+				->get()->result_array();
 
 
-			if(empty($giftOne)){
+			if (empty($giftOne)) {
 				$message = 'no gifts for user one';
 			}
-			
-			if(empty($giftTwo)){
+
+			if (empty($giftTwo)) {
 				$message = 'no gifts for user two';
 			}
-			
-			if(empty($giftOne) && empty($giftTwo)){
+
+			if (empty($giftOne) && empty($giftTwo)) {
 				$message = 'no gifts found for both the users';
-			}else{
+			} else {
 				$message = 'data found';
- 			}
+			}
 
 			rsort($giftOne);
-			$gift_one = $giftOne ? : null;
+			$gift_one = $giftOne ?: null;
 			rsort($giftTwo);
-			$gift_two = $giftTwo ? : null;
+			$gift_two = $giftTwo ?: null;
 
 			echo json_encode([
 				'status' => 1,
@@ -18746,304 +18795,326 @@ class Bango extends CI_Controller
 					'userone' => $gift_one,
 					'usertwo' => $gift_two
 				]
-			]);exit;
-			
-			
-		}else{
+			]);
+			exit;
+		} else {
 			echo json_encode([
 				'status' => 0,
 				'message' => 'method not allowed'
-			]);exit;
+			]);
+			exit;
 		}
 	}
 
 
-	public function get_enrty_effects(){
-		if($_SERVER['REQUEST_METHOD'] === 'POST'){
+	public function get_enrty_effects()
+	{
+		if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 			$user = $this->db->get_where('users', ['id' => $this->input->post('userId')])->row_array();
-			if(empty($user)){
+			if (empty($user)) {
 				echo json_encode([
 					'status' => 0,
 					'message' => 'invalid userId'
-				]);exit;
+				]);
+				exit;
 			}
 
 			$get = $this->db->get('entryEffects')->result_array();
-			if(empty($get)){
+			if (empty($get)) {
 				echo json_encode([
 					'status' => 0,
 					'message' => 'no data found'
-				]);exit;
+				]);
+				exit;
 			}
 
 			$final = [];
-			foreach($get as $gets){
+			foreach ($get as $gets) {
 				$check = $this->db->get_where('enrty_effects_purchased_by_user', ['userId' => $user['id'], 'entryId' => $gets['id']])->row_array();
-				if(!empty($check)){
+				if (!empty($check)) {
 
-					if(date('Y-m-d') > $check['dateTo']){
+					if (date('Y-m-d') > $check['dateTo']) {
 						$gets['purchase_status'] = false;
 						$this->db->delete('enrty_effects_purchased_by_user', ['id' => $check['id']]);
-					}else{
+					} else {
 						$gets['purchase_status'] = true;
 					}
-					
-				}else{
+				} else {
 					$gets['purchase_status'] = false;
 				}
 
 				$final[] = $gets;
 			}
 
-			if(empty($final)){
+			if (empty($final)) {
 				echo json_encode([
 					'status' => 0,
 					'message' => 'no data found'
-				]);exit;
+				]);
+				exit;
 			}
 
 			echo json_encode([
 				'status' => 1,
 				'message' => 'enrty effects found',
 				'details' => $final
-			]);exit;
-			
-			}else{
+			]);
+			exit;
+		} else {
 			echo json_encode([
 				'status' => 0,
 				'message' => 'metod not allowed'
-			]);exit;
+			]);
+			exit;
 		}
 	}
 
 
-	public function purchase_entry_effects(){
-		if($_SERVER['REQUEST_METHOD'] === 'POST'){
+	public function purchase_entry_effects()
+	{
+		if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 			$user = $this->db->get_where('users', ['id' => $this->input->post('userId')])->row_array();
-			if(empty($user)){
+			if (empty($user)) {
 				echo json_encode([
 					'status' => 0,
 					'message' => 'invalid userId'
-				]);exit;
+				]);
+				exit;
 			}
 
 			$entry = $this->db->get_where('entryEffects', ['id' => $this->input->post('entryId')])->row_array();
-			if(empty($entry)){
+			if (empty($entry)) {
 				echo json_encode([
 					'status' => 0,
 					'message' => 'invalid enrtyId'
-				]);exit;
+				]);
+				exit;
 			}
 
 
 			$purchase = $this->db->get_where('enrty_effects_purchased_by_user', ['userId' => $user['id'], 'entryId' => $entry['id']])->row_array();
-			if(!!$purchase){
-				if(date('Y-m-d') > $purchase['dateTo']){
+			if (!!$purchase) {
+				if (date('Y-m-d') > $purchase['dateTo']) {
 					$this->db->delete('enrty_effects_purchased_by_user', ['id' => $purchase['id']]);
-				}else{
+				} else {
 					echo json_encode([
 						'status' => 0,
 						'message' => 'enrty effect already purchased'
-					]);exit;
+					]);
+					exit;
 				}
 			}
 
 			$data['dateFrom'] = date('Y-m-d');
 
-			if($this->input->post('type') == '1'){
+			if ($this->input->post('type') == '1') {
 
-				if($entry['price'] > $user['purchasedCoin']){
+				if ($entry['price'] > $user['purchasedCoin']) {
 					echo json_encode([
 						'status' => 0,
 						'message' => 'insufficient balance'
-					]);exit;
+					]);
+					exit;
 				}
 
 
 				$data['dateTo'] = date('Y-m-d', strtotime('+7 days'));
-
-			}else if($this->input->post('type') == '2'){
+			} else if ($this->input->post('type') == '2') {
 
 				$price = $entry['price'] * 4;
 
-				if($price > $user['purchasedCoin']){
+				if ($price > $user['purchasedCoin']) {
 					echo json_encode([
 						'status' => 0,
 						'message' => 'insufficient balance'
-					]);exit;
+					]);
+					exit;
 				}
 
 				$data['dateTo'] = date('Y-m-d', strtotime('+30 days'));
-
-			}else{
+			} else {
 				echo json_encode([
 					'status' => 0,
 					'message' => 'invalid type'
-				]);exit;
+				]);
+				exit;
 			}
-			
+
 
 			$data['userId'] = $user['id'];
 			$data['entryId'] = $entry['id'];
 
-			if($this->db->insert('enrty_effects_purchased_by_user', $data)){
+			if ($this->db->insert('enrty_effects_purchased_by_user', $data)) {
 				echo json_encode([
 					'status' => 1,
 					'message' => 'enrty effect purchased'
-				]);exit;
-			}else{
+				]);
+				exit;
+			} else {
 				echo json_encode([
 					'status' => 0,
 					'message' => 'db error'
-				]);exit;
+				]);
+				exit;
 			}
-			
-		}else{
+		} else {
 			echo json_encode([
 				'status' => 0,
 				'message' => 'method not allowed'
-			]);exit;
+			]);
+			exit;
 		}
 	}
 
-	public function my_purchased_entry_effects(){
-		if($_SERVER['REQUEST_METHOD'] === 'POST'){
+	public function my_purchased_entry_effects()
+	{
+		if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 			$user = $this->db->get_where('users', ['id' => $this->input->post('userId')])->row_array();
-			if(empty($user)){
+			if (empty($user)) {
 				echo json_encode([
 					'status' => 0,
 					'message' => 'invalid userId'
-				]);exit;
+				]);
+				exit;
 			}
 
 			$purchased = $this->db->select('enrty_effects_purchased_by_user.*, entryEffects.image, entryEffects.thumbnail')
-								  ->from('enrty_effects_purchased_by_user')
-								  ->join('entryEffects', 'entryEffects.id = enrty_effects_purchased_by_user.entryId', 'left')
-								  ->where('userId', $user['id'])
-								  ->get()->result_array();
+				->from('enrty_effects_purchased_by_user')
+				->join('entryEffects', 'entryEffects.id = enrty_effects_purchased_by_user.entryId', 'left')
+				->where('userId', $user['id'])
+				->get()->result_array();
 
-			if(empty($purchased)){
+			if (empty($purchased)) {
 				echo json_encode([
 					'status' => 0,
 					'message' => 'no entry effects found'
-				]);exit;
+				]);
+				exit;
 			}
 
 			$final = [];
-			foreach($purchased as $purchase){
-				if($purchase['dateTo'] < date('Y-m-d')){
+			foreach ($purchased as $purchase) {
+				if ($purchase['dateTo'] < date('Y-m-d')) {
 					$this->db->delete('enrty_effects_purchased_by_user', ['id' => $purchase['id']]);
-				}else{
+				} else {
 
 					$purchase['isApplied'] = false;
-					if($user['entryId'] == $purchase['id']){
+					if ($user['entryId'] == $purchase['id']) {
 						$purchase['isApplied'] = true;
 					}
 					$final[] = $purchase;
 				}
 			}
 
-			if(empty($final)){
+			if (empty($final)) {
 				echo json_encode([
 					'status' => 0,
 					'message' => 'no entry effects found'
-				]);exit;
+				]);
+				exit;
 			}
 
 			echo json_encode([
 				'status' => 1,
 				'message' => 'entry effects list found',
 				'details' => $final
-			]);exit;
-			
-			
-		}else{
+			]);
+			exit;
+		} else {
 			echo json_encode([
 				'status' => 0,
 				'message' => 'method  not allowed'
-			]);exit;
+			]);
+			exit;
 		}
 	}
 
-	public function apply_entry_effect(){
-		if($_SERVER['REQUEST_METHOD'] === 'POST'){
+	public function apply_entry_effect()
+	{
+		if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 			$user = $this->db->get_where('users', ['id' => $this->input->post('userId')])->row_array();
-			if(empty($user)){
+			if (empty($user)) {
 				echo json_encode([
 					'status' => 0,
 					'message' => 'invalid userId'
-				]);exit;
+				]);
+				exit;
 			}
 
 			$entry = $this->db->get_where('entryEffects', ['id' => $this->input->post('entryId')])->row_array();
-			if(empty($entry)){
+			if (empty($entry)) {
 				echo json_encode([
 					'status' => 0,
 					'message' => 'invalid entryId'
-				]);exit;
+				]);
+				exit;
 			}
 
 			$purchase = $this->db->get_where('enrty_effects_purchased_by_user', ['userId' => $user['id'], 'entryId' => $entry['id']])->row_array();
-			if(!!$purchase){
+			if (!!$purchase) {
 
-				if($purchase['dateTo'] < date('Y-m-d')){
+				if ($purchase['dateTo'] < date('Y-m-d')) {
 					$this->db->delete('enrty_effects_purchased_by_user', ['id' => $purchase['id']]);
 					echo json_encode([
 						'status' => 0,
 						'message' => 'entry effect not purchased'
-					]);exit;
-				}else{
+					]);
+					exit;
+				} else {
 
 					$data['entryId']  = $entry['id'];
-					
+
 					$this->db->set($data)->where('id', $user['id'])->update('users');
 
 					echo json_encode([
 						'status' => 1,
 						'message' => 'entry effect applied'
-					]);exit;
+					]);
+					exit;
 				}
-
-			}else{
+			} else {
 				echo json_encode([
 					'status' => 0,
 					'message' => 'entry effect not purchased'
-				]);exit;
+				]);
+				exit;
 			}
-
-		}else{
+		} else {
 			echo json_encode([
 				'status' => 0,
 				'message' => 'method not allowed'
-			]);exit;
+			]);
+			exit;
 		}
 	}
 
-	public function my_applied_entry(){
-		if($_SERVER['REQUEST_METHOD'] === 'POST'){
+	public function my_applied_entry()
+	{
+		if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 			$user = $this->db->get_where('users', ['id' => $this->input->post('userId')])->row_array();
-			if(empty($user)){
+			if (empty($user)) {
 
 				echo json_encode([
 					'status' => 0,
 					'message' => 'invalid userId'
-				]);exit;
-
+				]);
+				exit;
 			}
 
 			$purchased = $this->db->get_where('enrty_effects_purchased_by_user', ['userId' => $user['id'], 'entryId' => $user['entryId']])->row_array();
-			if(empty($purchased)){
+			if (empty($purchased)) {
 				echo json_encode([
 					'status' => 0,
 					'message' => 'no entry effect applied!'
-				]);exit; 
-			}else{
-				if(date('Y-m-d') > $purchased['dateTo']){
+				]);
+				exit;
+			} else {
+				if (date('Y-m-d') > $purchased['dateTo']) {
 					// print_r($purchased);exit;
 					$this->db->delete('enrty_effects_purchased_by_user', ['id' => $purchased['id']]);
 					// print_r($this->db->last_query());exit;
@@ -19052,29 +19123,309 @@ class Bango extends CI_Controller
 					echo json_encode([
 						'status' =>  0,
 						'message' => 'no entry effect applied'
-					]);exit;
-				}else{
+					]);
+					exit;
+				} else {
 
 					$final = $this->db->get_where('entryEffects', ['id' => $user['entryId']])->row_array();
-					
+
 					echo json_encode([
 						'status' => 1,
 						'message' => 'enrty effect found',
 						'details' => $final
-					]);exit;
+					]);
+					exit;
 				}
 			}
-
-
-			
-		}else{
+		} else {
 			echo json_encode([
 				'status' => 0,
 				'message' => 'method not allowed'
-			]);exit;
+			]);
+			exit;
 		}
 	}
 
+	public function send_multiple_live_gift()
+	{
+		if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+
+			$raw_data = file_get_contents("php://input");
+
+			$dataa = json_decode($raw_data);
+
+			if (empty($dataa)) {
+				echo json_encode([
+					'status' => 0,
+					'message' => 'data required'
+				]);
+				exit;
+			}
+
+
+			$liveId = 0;
+			foreach ($dataa as $ob) {
+
+				$ob = (array)$ob;
+				$liveId = $ob['liveId'];
+
+
+				// ======================= sender part =================================================
+
+				$senderDetails = $this->db->select('monthlySendCoins, total_send_coin, purchasedCoin')
+					->from('users')
+					->where('id', $ob['userId'])
+					->get()->row_array();
+
+				// check balance
+				$senderCoins = $senderDetails['purchasedCoin'] ?: 0;
+
+				$totalSendCoins = $senderDetails['total_send_coin'] ?: 0;
+
+				if ($senderCoins < $data['coin']) {
+					echo json_encode([
+						'status' => 0,
+						'message' => 'Insufficient funds'
+					]);
+					exit;
+				}
+
+				if (empty($totalSendCoins)) {
+					$totalSendCoins = 0;
+				}
+
+				$senderCoins -= $data['coin'];
+
+				$totalSendCoins += $data['coin'];
+
+				// ========================================== setting userLevel =============
+
+				$userLevel = $this->db->get('user_levels')->result_array();
+
+				foreach ($userLevel as $level) {
+					if ($totalSendCoins >= $level['experince'] && $totalSendCoins <= $level['experienceTo']) {
+						$myLevel = $level['level'];
+					}
+				}
+
+				$this->db->set(['purchasedCoin' => $senderCoins, 'total_send_coin' => $totalSendCoins, 'my_level' => $myLevel])
+					->where('id', $ob['userId'])
+					->update('users');
+
+
+				// ====================== reciever part ===================================================
+
+
+				$recieverDetails = $this->db->select('monthlyCoins, coin')
+					->from('users')
+					->where('id', $ob['giftUserId'])
+					->get()->row_array();
+
+				$recieverMonthlyCoin = $recieverDetails['monthlyCoins'] ?: 0;
+				$recieverCoin = $recieverDetails['coin'] ?: 0;
+
+				$recieverMonthlyCoin += $data['coin'];
+				// print_r($recieverCoin);echo "....";print_r($data['coin']);exit;
+				$recieverCoin += $data['coin'];
+
+				$talentLevel = $this->db->get('user_talent_levels')->result_array();
+
+				foreach ($talentLevel as $talentLevel) {
+					if ($recieverCoin >= $talentLevel['experince'] && $recieverCoin <= $talentLevel['experienceTo']) {
+						$myTalentLevel = $talentLevel['level'];
+					}
+				}
+
+
+				$this->db->set(['monthlyCoins' => $recieverMonthlyCoin, 'coin' => $recieverCoin, 'talent_level' => $myTalentLevel])
+					->where('id', $ob['giftUserId'])
+					->update('users');
+
+				$ob['created'] = date('Y-m-d');
+				$insert = $this->db->insert('userGiftHistory', $ob);
+			}
+
+			$countStar = $this->db->select_sum('coin')
+				->from('userGiftHistory')
+				->where('giftUserId', $live['giftUserId'])
+				->where('created', date('Y-m-d'))
+				->get()->row_array();
+
+			$star_count = $countStar['coin'] ?: 0;
+
+			$starStatus = $this->db->select_sum('coin')
+				->from('userGiftHistory')
+				->where('liveId', $liveId)
+				->get()->row_array();
+
+			$str = $starStatus['coin'] ?: 0;
+
+			$str_status = '0';
+
+			if ($str < 10000) {
+				$strStatus = '0';
+			} else if ($str < 50000) {
+				$strStatus = '1';
+			} else if ($str < 200000) {
+				$strStatus = '2';
+			} else if ($str < 1000000) {
+				$strStatus = "3";
+			} else if ($str < 2000000) {
+				$strStatus = "4";
+			} else {
+				$strStatus = "5";
+			}
+
+
+
+			echo json_encode([
+				'status' => 1,
+				'message' => 'gift sent',
+				'details' => [
+					'starcount' => $star_count,
+					'strastatus' => $str_status,
+					'coinsrecieved' => $starStatus['coin'] ?: 0
+				]
+			]);
+			exit;
+		} else {
+			echo json_encode([
+				'status' => 0,
+				'message' => 'method not allowed'
+			]);
+			exit;
+		}
+	}
+
+	public function get_live_details()
+	{
+		if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+
+			$liveId = $this->db->select('userLive.*, users.name, users.username, users.image, users.myAdminFrame, users.myVipFrame, users.myFrame, users.coin')
+				->from('userLive')
+				->join('users', 'users.id = userLive.userId', 'left')
+				->where('userLive.id', $this->input->post('liveId'))
+				->get()->row_array();
+
+			$countStar = $this->db->select_sum('coin')
+				->from('userGiftHistory')
+				->where('giftUserId', $liveId['userId'])
+				->where('created', date('Y-m-d'))
+				->get()->row_array();
+
+			$liveId['star_count'] = $countStar['coin'] ?: 0;
+
+			$starStatus = $this->db->select_sum('coin')
+				->from('userGiftHistory')
+				->where('liveId', $liveId['id'])
+				->get()->row_array();
+
+			$str = $starStatus['coin'] ?: 0;
+
+			$str_status = '0';
+
+			if ($str < 10000) {
+				$strStatus = '0';
+			} else if ($str < 50000) {
+				$strStatus = '1';
+			} else if ($str < 200000) {
+				$strStatus = '2';
+			} else if ($str < 1000000) {
+				$strStatus = "3";
+			} else if ($str < 2000000) {
+				$strStatus = "4";
+			} else {
+				$strStatus = "5";
+			}
+
+			$liveId['star_status'] = $strStatus;
+
+			
+			if ($liveId['myAdminFrame'] != '0' && $liveId['myVipFrame'] == '0' && $liveId['myFrame'] == '0') {
+				$get = $this->db->get_where('userAdminFrame', ['id' => $liveId['myAdminFrame']])->row_array();
+				$liveId['myAppliedFrame'] = $get['frame'];
+			} elseif ($liveId['myAdminFrame'] == '0' && $liveId['myVipFrame'] != '0' && $liveId['myFrame'] == '0') {
+				$get = $this->db->get_where('vips', ['id' => $liveId['myVipFrame']])->row_array();
+				$liveId['myAppliedFrame'] = $get['framesvg'];
+			} elseif ($liveId['myAdminFrame'] == '0' && $liveId['myVipFrame'] == '0' && $liveId['myFrame'] != '0') {
+				$get = $this->db->get_where('framesPerLevel', ['id' => $liveId['myFrame']])->row_array();
+				$liveId['myAppliedFrame'] = $get['image'];
+			} else {
+				$liveId['myAppliedFrame'] = null;
+			}
+
+
+			if (empty($liveId)) {
+				echo json_encode([
+					'status' => 0,
+					'message' => 'invalid liveId'
+				]);
+				exit;
+			}
+
+			if ($liveId['status'] != 'live') {
+				echo json_encode([
+					'status' => 0,
+					'message' => 'live ended'
+				]);
+				exit;
+			}
+
+			echo json_encode([
+				'status' => 1,
+				'message' => 'live details found',
+				'details' => $liveId
+			]);
+			exit;
+		} else {
+			echo json_encode([
+				'status' => 0,
+				'message' => 'method not allowed'
+			]);
+			exit;
+		}
+	}
+
+	public function get_friends_followers_following_list()
+	{
+		if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+
+			$user = $this->db->get_where('users', ['id' => $this->input->post('userId')])->row_array();
+			if (empty($user)) {
+				echo json_encode([
+					'status' => 0,
+					'message' => 'invalid userId'
+				]);
+				exit;
+			}
+
+			$friendsArray = [];
+			$friends = $this->db->get_where('userFollow', ['userId' => $user['id']])->result_array();
+			// print_r($friends);exit;
+			if (!empty($friends)) {
+
+				foreach ($friends as $fri) {
+					$friendss = $this->db->get_where('userFollow', ['userId' => $fri['followingUserId'], 'followingUserId' => $user['id']])->row_array();
+					// print_r($friendss);exit;
+					$friendsArray[] = $friendss['userId'];
+				}
+
+				$ids = implode(',', $friendsArray);
+				// print_r($ids);exit;
+
+				$where = "followingUserId NOT IN($ids)";
+				// $followers = $this->db->get_where('')
+
+
+			}
+		} else {
+			echo json_encode([
+				'status' => 0,
+				'message' => 'method not allowed'
+			]);
+			exit;
+		}
+	}
 
 
 
