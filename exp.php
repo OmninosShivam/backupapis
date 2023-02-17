@@ -3,6 +3,8 @@
 // require '/vendor/autoload.php';
 
 use Kreait\Firebase\Factory;
+use PHPMailer\PHPMailer\PHPMailer;
+use PHPMailer\PHPMailer\Exception;
 
 defined('BASEPATH') or exit('No direct script access allowed');
 
@@ -66,11 +68,12 @@ class Experience extends CI_Controller
                 exit;
             }
 
-            if(!$_FILES['qr_code']['name']){
+            if (!$_FILES['qr_code']['name']) {
                 echo json_encodE([
                     'status' => 0,
                     'message' => 'qr_code required'
-                ]);exit;
+                ]);
+                exit;
             }
 
             $checkEmail = $this->db->get_where('users', ['email' => $this->input->post('email')])->row_array();
@@ -430,19 +433,21 @@ class Experience extends CI_Controller
                 exit;
             }
 
-            if(!$this->input->post('categoryId')){
+            if (!$this->input->post('categoryId')) {
                 echo json_encode([
                     'status' => 0,
                     'message' => 'categoryId required'
-                ]);exit;
+                ]);
+                exit;
             }
 
             $category = $this->db->get_where('category', ['id' => $this->input->post('categoryId')])->row_array();
-            if(empty($category)){
+            if (empty($category)) {
                 echo json_encode([
                     'status' => 0,
                     'message' => 'inavlid categoryId'
-                ]);exit;
+                ]);
+                exit;
             }
 
             // if(gettype($this->input->post('retail_price')) != 'integer'){
@@ -530,7 +535,7 @@ class Experience extends CI_Controller
         }
     }
 
-   
+
 
     public function getUser()
     {
@@ -819,7 +824,7 @@ class Experience extends CI_Controller
 
                 $fin['likeStatus'] = 0;
                 $like = $this->db->get_where('likeFeed', ['mediaId' =>  $fin['id'], 'userId' => $this->input->post('userId')])->row_array();
-                if(!!($like)){
+                if (!!($like)) {
                     $fin['likeStatus'] = 1;
                 }
                 $fin['likeCount'] = $getLikeCount;
@@ -1003,11 +1008,6 @@ class Experience extends CI_Controller
                 $fin['bookmarkStatus'] = $book;
                 $fin['wishlistStatus'] = $wish;
                 $fin['purchase_status'] = $this->check_purchase_status($fin['id'], $checkUser['id']);
-                $fin['reviews'] = $this->db->select('reviewsFeed.*, users.image, users.username')
-                                           ->from('reviewsFeed')
-                                           ->join('users', 'users.id = reviewsFeed.userId', 'left')
-                                           ->where('productId', $fin['id'])
-                                           ->get()->result_array();
 
                 $last[] = $fin;
             }
@@ -1908,14 +1908,13 @@ class Experience extends CI_Controller
                 $arList = [];
             } else {
 
-                if(array_key_exists($id, $list)){
+                if (array_key_exists($id, $list)) {
 
                     $arList[] = $list;
                 }
-
             }
 
-            if(empty($arList)){
+            if (empty($arList)) {
                 $arList = [];
             }
 
@@ -1945,24 +1944,26 @@ class Experience extends CI_Controller
         }
     }
 
-    public function deleteMedia(){
-        if($this->input->post()){
+    public function deleteMedia()
+    {
+        if ($this->input->post()) {
 
             $getMedia = $this->db->get_where('shopping_media', ['userId' => $this->input->post('userId'), 'id' => $this->input->post('mediaId')])->row_array();
-            if(empty($getMedia)){
-                $this->sendMessage(0,'No Media Found',0);exit;
+            if (empty($getMedia)) {
+                $this->sendMessage(0, 'No Media Found', 0);
+                exit;
             }
 
-            if($this->db->delete('shopping_media', ['id' => $this->input->post('mediaId')])){
+            if ($this->db->delete('shopping_media', ['id' => $this->input->post('mediaId')])) {
 
-                $this->sendMessage(1,'Media Deleted',0);exit;
-
-            }else{
-                $this->sendMessage(0,'DB error',0);exit;
+                $this->sendMessage(1, 'Media Deleted', 0);
+                exit;
+            } else {
+                $this->sendMessage(0, 'DB error', 0);
+                exit;
             }
-
-        }else{
-            $this->sendMessage(0,'method not allowed',0);
+        } else {
+            $this->sendMessage(0, 'method not allowed', 0);
         }
     }
 
@@ -1999,52 +2000,52 @@ class Experience extends CI_Controller
         }
     }
 
-    private function secretToken(){
+    private function secretToken()
+    {
 
         require_once('application/libraries/stripe-php/init.php');
 
         $stripe = new \Stripe\StripeClient('sk_test_iX6rMKNGZWBT7LCVgivd0vFE00RgKQOOlg');
 
         return $stripe;
-        
     }
 
-    public function createOrderFromCart(){
-        if($this->input->post()){
+    public function createOrderFromCart()
+    {
+        if ($this->input->post()) {
 
             $user = $this->db->get_where('users', ['id' => $this->input->post('userId')])->row_array();
 
-            if(empty($user)){
-                $this->sendMessage(0,'invalid userId',0);
+            if (empty($user)) {
+                $this->sendMessage(0, 'invalid userId', 0);
             }
 
             $products = $this->db->get_where('addToCart', ['userId' => $this->input->post('userId')])->result_array();
 
-            if(empty($products)){
-                $this->sendMessage(0,'no product inCart',0);
+            if (empty($products)) {
+                $this->sendMessage(0, 'no product inCart', 0);
             }
 
             $address = $this->db->get_where('address', ['userId' => $this->input->post('userId'), 'id' => $this->input->post('addressId')])->row_array();
 
-            if(empty($address)){
-                $this->sendMessage(0,'invalid addressId',0);
+            if (empty($address)) {
+                $this->sendMessage(0, 'invalid addressId', 0);
             }
 
             $ids = [];
             $totalPrice = 0;
-            foreach($products as $product){
+            foreach ($products as $product) {
 
                 $ids[] = $product['shopping_media_id'];
                 $totalPrice += $product['total_price'];
-
             }
 
             $data['productId'] = implode(",", $ids);
             $orderdetails = $this->db->from('orderDetails')->order_by('id', 'desc')->get()->row_array();
 
-            if(empty($orderdetails)){
+            if (empty($orderdetails)) {
                 $data['orderCal'] = 5555;
-            }else{
+            } else {
                 $orderdetails['orderCal'] += 1;
                 $data['orderCal'] = $orderdetails['orderCal'];
             }
@@ -2058,48 +2059,47 @@ class Experience extends CI_Controller
             $data['time'] = date('H:i:s');
 
             $this->db->delete('orderDetails', ['userId' => $this->input->post('userId'), 'status' => 'pending']);
-            if($this->db->insert('orderDetails', $data)){
+            if ($this->db->insert('orderDetails', $data)) {
                 $id = $this->db->insert_id();
                 $get = $this->db->get_where('orderDetails', ['id' => $id])->row_array();
                 // print_r($this->db->last_query());exit;
-                $this->sendMessage(1,'orderId generated', $get);
-            }else{
-                $this->sendMessage(0,'DB Error',0);
+                $this->sendMessage(1, 'orderId generated', $get);
+            } else {
+                $this->sendMessage(0, 'DB Error', 0);
             }
-
-
-        }else{
-            $this->sendMessage(0,'method nopt allowed',0);
+        } else {
+            $this->sendMessage(0, 'method nopt allowed', 0);
         }
     }
 
-    public function createOrderDirectBuy(){
+    public function createOrderDirectBuy()
+    {
 
-        if($this->input->post()){
+        if ($this->input->post()) {
 
             $user = $this->db->get_where('users', ['id' => $this->input->post('userId')])->row_array();
-            if(empty($user)){
-                $this->sendMessage(0,'invalid userId',0);
+            if (empty($user)) {
+                $this->sendMessage(0, 'invalid userId', 0);
             }
 
             $product = $this->db->get_where('shopping_media', ['id' => $this->input->post('productId'), 'media_type' => '2'])->row_array();
-            if(empty($product)){
-                $this->sendMessage(0,'invalid productId',0);
+            if (empty($product)) {
+                $this->sendMessage(0, 'invalid productId', 0);
             }
 
             $address = $this->db->get_where('address', ['userId' => $this->input->post('userId'), 'id' => $this->input->post('addressId')])->row_array();
 
-            if(empty($address)){
-                $this->sendMessage(0,'invalid addressId',0);
+            if (empty($address)) {
+                $this->sendMessage(0, 'invalid addressId', 0);
             }
 
 
             $data['productId'] = $this->input->post('productId');
             $orderdetails = $this->db->from('orderDetails')->order_by('id', 'desc')->get()->row_array();
 
-            if(empty($orderdetails)){
+            if (empty($orderdetails)) {
                 $data['orderCal'] = 5555;
-            }else{
+            } else {
                 $orderdetails['orderCal'] += 1;
                 $data['orderCal'] = $orderdetails['orderCal'];
             }
@@ -2114,106 +2114,108 @@ class Experience extends CI_Controller
             $data['time'] = date('H:i:s');
 
             $this->db->delete('orderDetails', ['userId' => $this->input->post('userId'), 'status' => 'pending']);
-            if($this->db->insert('orderDetails', $data)){
+            if ($this->db->insert('orderDetails', $data)) {
                 $id = $this->db->insert_id();
                 $get = $this->db->get_where('orderDetails', ['id' => $id])->row_array();
                 // print_r($this->db->last_query());exit;
-                $this->sendMessage(1,'orderId generated', $get);
-            }else{
-                $this->sendMessage(0,'DB Error',0);
+                $this->sendMessage(1, 'orderId generated', $get);
+            } else {
+                $this->sendMessage(0, 'DB Error', 0);
             }
-
-        }else{
-            $this->sendMessage(0,'Method not allowed',0);
+        } else {
+            $this->sendMessage(0, 'Method not allowed', 0);
         }
-
     }
 
     public function regeisterCard()
-	{
-		try {
+    {
+        try {
 
             // $check = $this->db->get_where('customerCardDetails', ['cardNumber' => $this->input->post('cardNumber'), 'save' => '1'])->row_array();
             // if(!!$check){
             //     $this->sendMessage(0,'card already in use',0);exit;
             // }
 
-			$stripe = $this->secretToken();
+            $stripe = $this->secretToken();
 
-			// generating token for card
-			$token = $stripe->tokens->create([
-				'card' => [
-					'number' => $this->input->post('cardNumber'),
-					'exp_month' => $this->input->post('expMonth'),
-					'exp_year' =>  $this->input->post('expYear'),
-					'cvc' =>  $this->input->post('cvv'),
-				],
-			]);
+            // generating token for card
+            $token = $stripe->tokens->create([
+                'card' => [
+                    'number' => $this->input->post('cardNumber'),
+                    'exp_month' => $this->input->post('expMonth'),
+                    'exp_year' =>  $this->input->post('expYear'),
+                    'cvc' =>  $this->input->post('cvv'),
+                ],
+            ]);
 
-			// creating customer
-			$customer = $stripe->customers->create([
+            // creating customer
+            $customer = $stripe->customers->create([
 
-				'email' =>  $this->input->post('email'),
-				'source' => $token
+                'email' =>  $this->input->post('email'),
+                'source' => $token
 
-			]);
+            ]);
 
-			// print_r($customer->id);exit;
+            // print_r($customer);exit;
 
-			$data['userId'] = $this->input->post('userId');
-			$data['customerId'] = $customer->id;
-			$data['cardNumber'] = $this->input->post('cardNumber');
-			$data['expMonth'] = $this->input->post('expMonth');
-			$data['expYear'] = $this->input->post('expYear');
-			$data['cvv'] = $this->input->post('cvv');
-			$data['cardType'] = $token['card']->brand;
-			$data['country'] = $token['card']->country;
-			$data['save'] = $this->input->post('save');
-			$data['date'] = date('y-m-d');
+            $data['userId'] = $this->input->post('userId');
+            $data['customerId'] = $customer->id;
+            $data['cardNumber'] = $this->input->post('cardNumber');
+            $data['expMonth'] = $this->input->post('expMonth');
+            $data['expYear'] = $this->input->post('expYear');
+            $data['cvv'] = $this->input->post('cvv');
+            $data['cardType'] = $token['card']->brand;
+            $data['country'] = $token['card']->country;
+            $data['save'] = $this->input->post('save');
+            $data['date'] = date('y-m-d');
 
-			if ($this->db->insert('customerCardDetails', $data)) {
+            if ($this->db->insert('customerCardDetails', $data)) {
 
-				echo json_encode([
-					'status' => 1,
-					'message' => 'data inserted',
-					'data' => $data
-				]);
-				exit;
-			} else {
-				echo json_encode([
-					'status' => 0,
-					'message' => 'DB error'
-				]);
-				exit;
-			}
-		} catch (exception $e) {
+                echo json_encode([
+                    'status' => 1,
+                    'message' => 'data inserted',
+                    'data' => $data
+                ]);
+                exit;
+            } else {
+                echo json_encode([
+                    'status' => 0,
+                    'message' => 'DB error'
+                ]);
+                exit;
+            }
+        } catch (exception $e) {
 
-			echo json_encode([
-				'status' => 0,
-				'message' => $e->getMessage()
-			]);
-			exit;
-		}
-	}
+            echo json_encode([
+                'status' => 0,
+                'message' => $e->getMessage()
+            ]);
+            exit;
+        }
+    }
 
-    public function makePayment(){
+    public function makePayment()
+    {
 
-        if($this->input->post()){
+        if ($this->input->post()) {
 
-            try{
+            try {
 
                 $orderId = $this->db->get_where('orderDetails', ['orderId' => $this->input->post('orderId'), 'status' => 'pending'])->row_array();
-                if(empty($orderId)){
-                    $this->sendMessage(0,'invalid orderId or order completed',0);
+                if (empty($orderId)) {
+                    $this->sendMessage(0, 'invalid orderId or order completed', 0);
                 }
-    
+
                 $customerId = $this->db->get_where('customerCardDetails', ['customerId' => $this->input->post('customerId')])->row_array();
-                if(empty($customerId)){
-                    $this->sendMessage(0,'invalid customerId',0);
+                if (empty($customerId)) {
+                    $this->sendMessage(0, 'invalid customerId', 0);
                 }
-    
-                if($customerId['userId'] != $orderId['userId']){
-                    $this->sendMessage(0,'orderId and customerId userId not match',0);exit;
+
+                $userDetails = $this->db->get_where('users', ['id' => $customerId['userId']])->row_array();
+
+                if ($customerId['userId'] != $orderId['userId']) {
+                    $this->sendMessage(0, 'orderId and customerId userId not match', 0);
+                    exit;
                 }
 
                 $stripe = $this->secretToken();
@@ -2222,7 +2224,7 @@ class Experience extends CI_Controller
                     'customer' => $customerId['customerId'],
                     'amount' => $orderId['purchasePrice'],
                     'currency' => 'usd',
-                    'description' => 'coins',
+                    'description' => 'shopping',
                     'automatic_payment_methods' => [
                         'enabled' => true,
                     ],
@@ -2237,403 +2239,456 @@ class Experience extends CI_Controller
                 $data['purchaseDate'] = date('Y-m-d h:i:s');
                 $data['status'] = 'completed';
 
+                // print_r($orderId);exit;
+                $pname = $this->db->get_where('shopping_media', ['id' => $orderId['productId']])->row_array();
+
+                $body = "<tr>
+                <td style='font-size: 12px; font-family: sans-serif; border: 1px solid #ccc; padding: 8px'>1</td>
+                <td style='font-size: 12px; font-family: sans-serif; border: 1px solid #ccc; padding: 8px'>" . $pname['product_name'] . "</td>
+                <td style='font-size: 12px; font-family: sans-serif; border: 1px solid #ccc; padding: 8px'>" . $orderId['purchasePrice'] . "</td>
+                <td style='font-size: 12px; font-family: sans-serif; border: 1px solid #ccc; padding: 8px'>" . $orderId['quantity'] . "</td>
+                </tr>";
+
+                $total = $orderId['purchasePrice'];
+
                 $this->db->set($data)->where('orderId', $this->input->post('orderId'))->update('orderDetails');
                 $allProducts = $this->db->get_where('addToCart', ['userId' => $customerId['userId']])->result_array();
-                if(!!$allProducts){
+                if (!!$allProducts) {
 
-                    foreach($allProducts as $product){
+                    $body = [];
+                    $total = 0;
+
+                    foreach ($allProducts as $product) {
+
+                        $pname = $this->db->get_where('shopping_media', ['id' => $product['shopping_media_id']])->row_array();
+
+                        $b = "<tr>
+                        <td style='font-size: 12px; font-family: sans-serif; border: 1px solid #ccc; padding: 8px'>1</td>
+                        <td style='font-size: 12px; font-family: sans-serif; border: 1px solid #ccc; padding: 8px'>" . $pname['product_name'] . "</td>
+                        <td style='font-size: 12px; font-family: sans-serif; border: 1px solid #ccc; padding: 8px'>" . $product['total_price'] . "</td>
+                        <td style='font-size: 12px; font-family: sans-serif; border: 1px solid #ccc; padding: 8px'>" . $product['quantity'] . "</td>
+                        </tr>";
+
+                        $body[] = $b;
+
+                        $total += $product['total_price'];
 
                         $this->db->delete('wishlist', ['userId' => $product['userId'], 'mediaId' => $product['shopping_media_id']]);
 
                         $this->db->insert('userShoppingProducts', $product);
                     }
+                    
+                    $body = implode("", $body);
 
                     $this->db->delete('addToCart', ['userId' => $customerId['userId']]);
-
                 }
-                
-                $this->sendMessage(1,'order completed',0);
 
-            }catch (exception $e){
-                $this->sendMessage(0,$e->getMessage(),0);
+                $msg = "<div class='table_body' style='width: 95%; margin: auto; border: 1px solid #ccc; padding: 10px; border-radius: 10px;'>
+                <table class='my_table' style='border-collapse: collapse; width: 100%; '>
+                    <tr>
+                        <th
+                            style='background: #e90041; border: 1px solid #ccc; padding: 8px 0px; text-align: left; font-family: sans-serif; padding: 8px; font-size: 12px; color: white;'>
+                            S.No</th>
+                        <th
+                            style='background: #e90041; border: 1px solid #ccc; padding: 8px 0px; text-align: left; font-family: sans-serif; padding: 8px; font-size: 12px; color: white; '>
+                            Product Name</th>
+                        <th
+                            style='background: #e90041; border: 1px solid #ccc; padding: 8px 0px; text-align: left; font-family: sans-serif; padding: 8px; font-size: 12px; color: white;'>
+                            Product Prize</th>
+                        <th
+                            style='background: #e90041; border: 1px solid #ccc; padding: 8px 0px; text-align: left; font-family: sans-serif; padding: 8px; font-size: 12px; color: white; '>
+                            Product Quantity</th>
+                    </tr>
+
+                    " . $body . " 
+                    <tfoot>
+                    <td  style='border-left: 1px solid #ccc; padding: 8px; font-family: sans-serif; font-size: 14px; border-bottom: 1px solid #ccc;'><b>Total</b> </td>
+                    <td style='border-bottom: 1px solid #ccc;'></td>
+                    <td style='border-bottom: 1px solid #ccc;'></td>
+                    <td style='border-right: 1px solid #ccc; border-bottom: 1px solid #ccc; '><span style='float: left;''>$total</span> </td>
+                    
+                </tfoot>
+                </table>
+            </div>";
+
+            // print_r($msg);exit;
+                $this->Email($userDetails['email'], 'Order Summary', $msg);
+                $this->sendMessage(1, 'order completed', 0);
+            } catch (exception $e) {
+                $this->sendMessage(0, $e->getMessage(), 0);
             }
-
-        }else{
-            $this->sendMessage(0,'Method Not Allowed',0);
+        } else {
+            $this->sendMessage(0, 'Method Not Allowed', 0);
         }
-
     }
 
-    public function saveCards(){
-        if($this->input->post()){
+    public function saveCards()
+    {
+        if ($this->input->post()) {
 
             $user = $this->db->get_where('users', ['id' => $this->input->post('userId')])->row_array();
-            if(empty($user)){
-                $this->sendMessage(0,'invalid userId', 0);
+            if (empty($user)) {
+                $this->sendMessage(0, 'invalid userId', 0);
             }
 
             $get = $this->db->get_where('customerCardDetails', ['userId' => $this->input->post('userId'), 'save' => '1'])->result_array();
-            if(empty($get)){
-                $this->sendMessage(0,'No Cards Saved',0);
+            if (empty($get)) {
+                $this->sendMessage(0, 'No Cards Saved', 0);
             }
 
-            $this->sendMessage(1,'cards list found', $get);
-
-        }else{
-            $this->sendMessage(0,'Method Not Allowed',0);
+            $this->sendMessage(1, 'cards list found', $get);
+        } else {
+            $this->sendMessage(0, 'Method Not Allowed', 0);
         }
     }
 
-    public function removeCard(){
-        if($this->input->post()){
+    public function removeCard()
+    {
+        if ($this->input->post()) {
 
             $user = $this->db->get_where('users', ['id' => $this->input->post('userId')])->row_array();
-            if(empty($user)){
-                $this->sendMessage(0,'inavlid userId',0);
+            if (empty($user)) {
+                $this->sendMessage(0, 'inavlid userId', 0);
             }
 
             $card = $this->db->get_where('customerCardDetails', ['userId' => $this->input->post('userId'), 'customerId' => $this->input->post('customerId')])->row_array();
-            if(empty($card)){
-                $this->sendMessage(0,'No card Found',0);
+            if (empty($card)) {
+                $this->sendMessage(0, 'No card Found', 0);
             }
 
-            if($this->db->delete('customerCardDetails', ['id' => $card['id']])){
-                $this->sendMessage(1,'card deleted',0);
-            }else{
-                $this->sendMessage(0,'DB error',0);
+            if ($this->db->delete('customerCardDetails', ['id' => $card['id']])) {
+                $this->sendMessage(1, 'card deleted', 0);
+            } else {
+                $this->sendMessage(0, 'DB error', 0);
             }
-
-        }else{
-            $this->sendMessage(0,'Method Not Allowed',0);
+        } else {
+            $this->sendMessage(0, 'Method Not Allowed', 0);
         }
     }
 
-    public function deleteComment(){
-        if($this->input->post()){
+    public function deleteComment()
+    {
+        if ($this->input->post()) {
 
             $user = $this->db->get_where('users', ['id' => $this->input->post('userId')])->row_array();
-            if(empty($user)){
-                $this->sendMessage(0,'invalid userId',0);
+            if (empty($user)) {
+                $this->sendMessage(0, 'invalid userId', 0);
             }
 
             $mediaId = $this->db->get_where('shopping_media', ['id' => $this->input->post('mediaId')])->row_array();
-            if(empty($mediaId)){
-                $this->sendMessage(0,'invalid mediaId',0);
+            if (empty($mediaId)) {
+                $this->sendMessage(0, 'invalid mediaId', 0);
             }
 
             $commentId = $this->db->get_where('commentFeed', ['mediaId' => $this->input->post('mediaId'), 'id' => $this->input->post('commentId'), 'userId' => $this->input->post('userId')])->row_array();
-            if(empty($commentId)){
-                $this->sendMessage(0,'invalid commentId',0);
+            if (empty($commentId)) {
+                $this->sendMessage(0, 'invalid commentId', 0);
             }
 
-            if($this->db->delete('commentFeed',['id' => $this->input->post('commentId')])){
+            if ($this->db->delete('commentFeed', ['id' => $this->input->post('commentId')])) {
 
-                $this->sendMessage(1,'comment deleted',0);
-
-            }else{
-                $this->sendMessage(0,'DB Error',0);
+                $this->sendMessage(1, 'comment deleted', 0);
+            } else {
+                $this->sendMessage(0, 'DB Error', 0);
             }
-
-        }else{
-            
+        } else {
         }
     }
 
-    public function getCountries(){
+    public function getCountries()
+    {
         $get = $this->db->get('countries')->result_array();
 
-        if(empty($get)){
-            $this->sendMessage(0,'No list found',0);
-        }else{
+        if (empty($get)) {
+            $this->sendMessage(0, 'No list found', 0);
+        } else {
             $this->sendMessage(1, 'list found', $get);
         }
     }
 
-    public function getState(){
+    public function getState()
+    {
 
-        if($this->input->post()){
+        if ($this->input->post()) {
 
             $country = $this->db->get_where('countries', ['id' => $this->input->post('countryId')])->row_array();
-            if(empty($country)){
-                $this->sendMessage(0,'invalid countryId',0);exit;
+            if (empty($country)) {
+                $this->sendMessage(0, 'invalid countryId', 0);
+                exit;
             }
 
             $state = $this->db->get_where('states', ['country_id' => $this->input->post('countryId')])->result_array();
-            if(empty($state)){
-                $this->sendMessage(0,'no state found',0);exit;
-            }else{
-                $this->sendMessage(1,'state found',$state);exit;
+            if (empty($state)) {
+                $this->sendMessage(0, 'no state found', 0);
+                exit;
+            } else {
+                $this->sendMessage(1, 'state found', $state);
+                exit;
             }
-
-        }else{
-            $this->sendMessage(0,'Method Not Allowed',0);
+        } else {
+            $this->sendMessage(0, 'Method Not Allowed', 0);
         }
-
     }
 
-    public function getCity(){
-        if($this->input->post()){
+    public function getCity()
+    {
+        if ($this->input->post()) {
 
             $state = $this->db->get_where('states', ['id' => $this->input->post('stateId')])->row_array();
-            if(empty($state)){
-                $this->sendMessage(0,'invalid stateId',0);
+            if (empty($state)) {
+                $this->sendMessage(0, 'invalid stateId', 0);
             }
 
             $city = $this->db->get_where('cities', ['state_id' => $this->input->post('stateId')])->result_array();
-            if(empty($city)){
-                $this->sendMessage(0,'no city found',0);
-            }else{
-                $this->sendMessage(1,'list found',$city);
+            if (empty($city)) {
+                $this->sendMessage(0, 'no city found', 0);
+            } else {
+                $this->sendMessage(1, 'list found', $city);
             }
-
-        }else{
-            $this->sendMessage(0,'Method not allowed',0);
+        } else {
+            $this->sendMessage(0, 'Method not allowed', 0);
         }
     }
 
-    public function getProductsCategory(){
+    public function getProductsCategory()
+    {
         $get = $this->db->get('category')->result_array();
 
-        if(empty($get)){
-            $this->sendMessage(0,'No category Found',0);
-        }else{
-            $this->sendMessage(1,'category list found',$get);
+        if (empty($get)) {
+            $this->sendMessage(0, 'No category Found', 0);
+        } else {
+            $this->sendMessage(1, 'category list found', $get);
         }
-    }    
+    }
 
-    public function getProductsByCategory(){
-        if($this->input->post()){
+    public function getProductsByCategory()
+    {
+        if ($this->input->post()) {
 
             $category = $this->db->get_where('category', ['id' => $this->input->post('categoryId')])->row_array();
-            if(empty($category)){
-                $this->sendMessage(0,'invalid categoryId',0);
+            if (empty($category)) {
+                $this->sendMessage(0, 'invalid categoryId', 0);
             }
 
             $product = $this->db->get_where('shopping_media', ['id' => $this->input->post('productId')])->row_array();
-            if(empty($product)){
-                $this->sendMessage(0,'invalid productId', 0);
+            if (empty($product)) {
+                $this->sendMessage(0, 'invalid productId', 0);
             }
 
-            $products = $this->db->get_where('shopping_media', ['id !=' => $product['id'] , 'categoryId' => $this->input->post('categoryId'), 'media_type' => '2'])->result_array();
-            if(empty($products)){
-                $this->sendMessage(0,'No Products Found',0);
-            }else{
+            $products = $this->db->get_where('shopping_media', ['id !=' => $product['id'], 'categoryId' => $this->input->post('categoryId'), 'media_type' => '2'])->result_array();
+            if (empty($products)) {
+                $this->sendMessage(0, 'No Products Found', 0);
+            } else {
 
                 $final = [];
 
-                foreach($products as $productss){
+                foreach ($products as $productss) {
 
                     $incart = $this->db->get_where('addToCart', ['userId' => $this->input->post('userId'), 'shopping_media_id' => $productss['id']])->row_array();
-                    if(empty($incart)){
+                    if (empty($incart)) {
                         $productss['incart'] = false;
-                    }else{
+                    } else {
                         $productss['incart'] = true;
                     }
 
                     $bookmark = $this->db->get_where('bookmarkFeed', ['userId' => $this->input->post('userId'), 'mediaId' => $productss['id']])->row_array();
-                    if(empty($bookmark)){
+                    if (empty($bookmark)) {
                         $productss['bookmarkStatus'] = false;
-                    }else{
+                    } else {
                         $productss['bookmarkStatus'] = true;
                     }
 
                     $wishlist = $this->db->get_where('wishlist', ['userId' => $this->input->post('userId'), 'mediaId' => $productss['id']])->row_array();
-                    if(empty($wishlist)){
+                    if (empty($wishlist)) {
                         $productss['wishlistStatus'] = 0;
-                    }else{
+                    } else {
                         $productss['wishlistStatus'] = 1;
                     }
 
 
 
                     $final[] = $productss;
-
                 }
 
-                $this->sendMessage(1,'categories found', $final);
+                $this->sendMessage(1, 'categories found', $final);
             }
-
-        }else{
-            $this->sendMessage(0,'Method not allowed', 0);
+        } else {
+            $this->sendMessage(0, 'Method not allowed', 0);
         }
     }
 
 
 
-    public function myOrders(){
-        if($this->input->post()){
+    public function myOrders()
+    {
+        if ($this->input->post()) {
 
             $user = $this->db->get_where('users', ['id' => $this->input->post('userId')])->row_array();
-            if(empty($user)){
-                $this->sendMessage(0,'inavlid userId',0);
+            if (empty($user)) {
+                $this->sendMessage(0, 'inavlid userId', 0);
             }
 
             $orders = $this->db->get_where('orderDetails', ['userId' => $this->input->post('userId'), 'status' => 'completed'])->result_array();
-            if(empty($orders)){
-                $this->sendMessage(0,'No orders found',0);
+            if (empty($orders)) {
+                $this->sendMessage(0, 'No orders found', 0);
             }
 
             $final = [];
-            foreach($orders as $order){
+            foreach ($orders as $order) {
 
                 $multiple = false;
 
-                if($order['quantity'] == '0'){
+                if ($order['quantity'] == '0') {
 
-                    $ids = explode(',',$order['productId']);
+                    $ids = explode(',', $order['productId']);
                     $ar = [];
-                    foreach($ids as $id){
+                    foreach ($ids as $id) {
 
                         $product = $this->db->get_where('shopping_media', ['id' => $id])->row_array();
-                        if(!!$product){
+                        if (!!$product) {
 
                             $ar[] = $product;
-
-                        }   
+                        }
                     }
 
                     $multiple = true;
-
-                }else{
+                } else {
 
                     $ar = $this->db->get_where('shopping_media', ['id' => $order['productId']])->row_array();
-
                 }
 
-                if($multiple == true){
+                if ($multiple == true) {
 
-                    foreach($ar as $arr){
+                    foreach ($ar as $arr) {
 
                         $final[] = $arr;
                     }
-                }else{
+                } else {
 
                     $final[] = $ar;
                 }
                 unset($ar);
-
             }
 
-            if(empty($final)){
-                $this->sendMessage(0,'no details found',0);
+            if (empty($final)) {
+                $this->sendMessage(0, 'no details found', 0);
             }
 
             $fin = [];
-            foreach($final as $finale){
+            foreach ($final as $finale) {
                 $finale['incart'] = false;
                 $finale['wishlistStatus'] = false;
                 $fin[] = $finale;
             }
 
-            $this->sendMessage(1,'details found',$fin);
-
-        }else{
-            $this->sendMessage(0,'Method not allowed',0);
+            $this->sendMessage(1, 'details found', $fin);
+        } else {
+            $this->sendMessage(0, 'Method not allowed', 0);
         }
     }
 
-    public function some_functionality(){
-        if($_SERVER['REQUEST_METHOD'] === 'POST'){
+    public function some_functionality()
+    {
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             $user = $this->db->get_where('users', ['id' => $this->input->post('userId')])->row_array();
-            if(empty($user)){
+            if (empty($user)) {
                 $this->sendMessage(0, 'invalid userId', 0);
             }
 
             $other_user =  $this->db->get_where('users', ['id' => $this->input->post('other_user')])->row_array();
-            if(empty($other_user)){
+            if (empty($other_user)) {
                 $this->sendMessage(0, 'invalid other_user', 0);
             }
 
 
-            if($user['id'] ==  $other_user['id']){
+            if ($user['id'] ==  $other_user['id']) {
                 $message = 'both ids are same';
-            }else{
+            } else {
                 $message = 'other_user details';
             }
 
             $this->sendMessage(1, $message, $other_user);
-
-            
-        }else{
-            $this->sendMessage(0,'method not allowed',0);
-        }
-    }
-
-
-    // if firebaseID recieving sending userid or if userid recieving sending firebaseID
-    public function get_ids(){
-        if($_SERVER['REQUEST_METHOD'] === 'POST'){
-
-            if($this->input->post('userId')){
-                $get = $this->db->select('firebaseId')->from('users')->where('id', $this->input->post('userId'))->get()->row_array();
-                if(empty($get['firebaseId'])){
-                    $this->sendMessage(0, 'invalid userId', 0);
-                }else{
-                    $this->sendMessage(1, 'details found', $get['firebaseId']);
-                }
-            }else if($this->input->post('firebaseId')){
-                $get = $this->db->select('id userId')->from('users')->where('firebaseId', $this->input->post('firebaseId'))->get()->row_array();
-                if(empty($get['userId'])){
-                    $this->sendMessage(0, 'invalid firebaseId', 0);
-                }else{
-                    $this->sendMessage(1, 'details found', $get['userId']);
-                }
-            }else{
-                $this->sendMessage(0,'userId or firebaseId required',0);
-            }   
-        }else{
+        } else {
             $this->sendMessage(0, 'method not allowed', 0);
         }
     }
 
 
-    protected function check_purchase_status($productId, $userId){
+    // if firebaseID recieving sending userid or if userid recieving sending firebaseID
+    public function get_ids()
+    {
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
-        $where = "productId LIKE '%" .$productId. "%'";
+            if ($this->input->post('userId')) {
+                $get = $this->db->select('firebaseId')->from('users')->where('id', $this->input->post('userId'))->get()->row_array();
+                if (empty($get['firebaseId'])) {
+                    $this->sendMessage(0, 'invalid userId', 0);
+                } else {
+                    $this->sendMessage(1, 'details found', $get['firebaseId']);
+                }
+            } else if ($this->input->post('firebaseId')) {
+                $get = $this->db->select('id userId')->from('users')->where('firebaseId', $this->input->post('firebaseId'))->get()->row_array();
+                if (empty($get['userId'])) {
+                    $this->sendMessage(0, 'invalid firebaseId', 0);
+                } else {
+                    $this->sendMessage(1, 'details found', $get['userId']);
+                }
+            } else {
+                $this->sendMessage(0, 'userId or firebaseId required', 0);
+            }
+        } else {
+            $this->sendMessage(0, 'method not allowed', 0);
+        }
+    }
+
+
+    protected function check_purchase_status($productId, $userId)
+    {
+
+        $where = "productId LIKE '%" . $productId . "%'";
         $list = $this->db->select('*')
-                         ->from('orderDetails')
-                         ->where('userId', $userId)
-                         ->where($where)
-                         ->get()->result_array();
-        if(!!$list){
+            ->from('orderDetails')
+            ->where('userId', $userId)
+            ->where($where)
+            ->get()->result_array();
+        if (!!$list) {
 
-            foreach($list as $lists){
-                if($lists['status'] == 'completed'){
+            foreach ($list as $lists) {
+                if ($lists['status'] == 'completed') {
                     return true;
                     break;
-                }else{
+                } else {
                     return false;
                 }
             }
-            
-        }else{
+        } else {
             return false;
         }
-
     }
 
-    public function add_review(){
-        if($_SERVER['REQUEST_METHOD'] === 'POST'){
+    public function add_review()
+    {
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             $user = $this->db->get_where('users', ['id' => $this->input->post('userId')])->row_array();
-            if(empty($user)){
+            if (empty($user)) {
                 $this->sendMessage(0, 'invalid userId', 0);
             }
 
             $product = $this->db->get_where('shopping_media', ['id' => $this->input->post('productId'), 'media_type' => '2'])->row_array();
-            if(empty($product)){
+            if (empty($product)) {
                 $this->sendMessage(0, 'invalid productId', 0);
             }
 
             $purchased = $this->check_purchase_status($product['id'], $user['id']);
 
-            if($purchased == false){
+            if ($purchased == false) {
                 $this->sendMessage(0, 'product not purchased', 0);
             }
 
-            if($this->input->post('star') > 5){
-                $this->sendMessage(0,'star count can not be more than 5', 0);
+            if ($this->input->post('star') > 5) {
+                $this->sendMessage(0, 'star count can not be more than 5', 0);
             }
 
             $data['userId'] = $user['id'];
@@ -2642,26 +2697,262 @@ class Experience extends CI_Controller
             $data['dateUp'] = date('Y-m-d');
             $data['timeUp'] = date('H:i:s');
             $data['review'] = $this->input->post('review');
-            if(!empty($_FILES['review_media'])){
+            if (!empty($_FILES['review_media']['name'])) {
                 $data['review_media'] = $this->uploadVideo($_FILES['review_media']);
-            }else{
+            } else {
                 $data['review_media'] = '';
             }
 
 
-            if($this->db->insert('reviewsFeed', $data)){
-                $this->sendMessage(1,'review added',0);
-            }else{
+            if ($this->db->insert('reviewsFeed', $data)) {
+                $this->sendMessage(1, 'review added', 0);
+            } else {
                 $this->sendMessage(0, 'DB error', 0);
             }
-            
-        }else{
+        } else {
             $this->sendMessage(0, 'method not allowed', 0);
         }
     }
-    
-    
-    
+
+    public function get_reviews()
+    {
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+
+            $media = $this->db->get_where('shopping_media', ['id' => $this->input->post('mediaId')])->row_array();
+            if (empty($media)) {
+                $this->sendMessage(0, 'invalid mediaId', 0);
+            }
+
+            $reviews = $this->db->select('reviewsFeed.*, users.username, users.image')
+                ->from('reviewsFeed')
+                ->join('users', 'users.id = reviewsFeed.userId', 'left')
+                ->where('productId', $media['id'])
+                ->get()->result_array();
+
+            if (empty($reviews)) {
+                $this->sendMessage(0, 'no reviews found', 0);
+            }
+
+            $this->sendMessage(1, 'reviews found', $reviews);
+
+            $fin['reviews'] = $this->db->select('reviewsFeed.*, users.image, users.username')
+                ->from('reviewsFeed')
+                ->join('users', 'users.id = reviewsFeed.userId', 'left')
+                ->where('productId', $fin['id'])
+                ->get()->result_array();
+        } else {
+            echo json_encode([
+                'status' => 0,
+                'message' => 'method not allowed'
+            ]);
+            exit;
+        }
+    }
 
 
+    public function change_password()
+    {
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+
+            $user = $this->db->get_where('users', ['id' => $this->input->post('userId')])->row_array();
+            if (empty($user)) {
+                $this->sendMessage(0, 'invalid userId', 0);
+            }
+
+            if (md5($this->input->post('old_password')) != $user['password']) {
+                $this->sendMessage(0, 'password not match', 0);
+            }
+
+            if (!$this->input->post('new_password') || empty($this->input->post('new_password'))) {
+                $this->sendMessage(0, 'new password required', 0);
+            }
+
+            $data['password'] = md5($this->input->post('new_password'));
+
+            $this->db->set($data)->where('id', $user['id'])->update('users');
+
+            $this->sendMessage(1, 'password updated', 0);
+        } else {
+            $this->sendMessage(0, 'method not allowed', 0);
+        }
+    }
+
+    public function get_product_details()
+    {
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+
+            $users = $this->db->get_where('users', ['id' => $this->input->post('userId')])->row_array();
+            if (empty($users)) {
+                $this->sendMessage(0, 'invalid userId', 0);
+            }
+
+            $product = $this->db->get_where('shopping_media', ['id' => $this->input->post('productId')])->row_array();
+            if (empty($product)) {
+                $this->sendMessage(0, 'invalid productId', 0);
+            }
+
+            $product['bookmark_status'] = false;
+            $bookmark = $this->db->get_where('bookmarkFeed', ['mediaId' => $product['id']])->row_array();
+            if (!!$bookmark) {
+                $product['bookmark_status'] = true;
+            }
+
+            $like_count = $this->db->get_where('likeFeed', ['mediaId' => $product['id']])->num_rows();
+            $product['like_count'] = $like_count;
+
+            $product['like_status'] = false;
+            $like = $this->db->get_where('likeFeed', ['mediaId' => $product['id'], 'userId' => $users['id']])->row_array();
+            if (!!$like) {
+                $product['like_status'] = true;
+            }
+
+            $user = $this->db->get_where('users', ['id' => $product['userId']])->row_array();
+            $product['username'] = $user['username'];
+            $product['user_image'] = $user['image'];
+
+            $this->sendMessage(1, 'product details found', $product);
+        } else {
+            $this->sendMessage(0, 'method not allowed', 0);
+        }
+    }
+
+    public function social_login()
+    {
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+
+            $login = $this->db->get_where('users', ['social_id' => $this->input->post('socialId')])->row_array();
+            if (empty($login)) {
+
+                $data['social_id'] = $this->input->post('socialId');
+                $data['regId'] = $this->input->post('reg_id');
+                $data['deviceId'] = $this->input->post('device_id');
+                $data['latitude'] = $this->input->post('latitude');
+                $data['longitude'] = $this->input->post('longitude');
+                $data['firebaseId'] = $this->input->post('firebaseId');
+                $data['username'] = $this->input->post('username');
+                $data['phone'] = $this->input->post('phone');
+                $data['email'] = $this->input->post('email');
+                $data['deviceType'] = $this->input->post('deviceType');
+                $data['password'] = md5($this->input->post('password'));
+
+                $this->db->insert('users', $data);
+                if ($this->db->insert_id() > 0) {
+
+                    $this->sendMessage(1, 'user logged in', 0);
+                } else {
+                    $this->sendMessage(0, 'DB error', 0);
+                }
+            } else {
+
+                $data['social_id'] = $this->input->post('socialId');
+                $data['regId'] = $this->input->post('reg_id');
+                $data['deviceId'] = $this->input->post('device_id');
+                $data['latitude'] = $this->input->post('latitude');
+                $data['longitude'] = $this->input->post('longitude');
+
+                $update = $this->db->set($data)->where(['id' => $login['id']])->update('users');
+                if ($update) {
+                    $this->sendMessage(1, 'social id matched, login success', 0);
+                } else {
+                    $this->sendMessage(0, 'DB error', 0);
+                }
+            }
+        } else {
+            $this->sendMessage(0, 'method not allowed', 0);
+        }
+    }
+
+    private function Email($to, $subject, $msg)
+    {
+        // require APPPATH . '/libraries/phpmailer/PHPMailerAutoload.php';
+        require APPPATH . '/libraries/PHPMailer/src/Exception.php';
+        require APPPATH . '/libraries/PHPMailer/src/PHPMailer.php';
+        require APPPATH . '/libraries/PHPMailer/src/SMTP.php';
+
+        try {
+            $mail = new PHPMailer;
+            $mail->isSMTP();
+            $mail->Host = 'evasofts.com';
+            $mail->Port = 587;
+            $mail->SMTPAuth = true;
+            $mail->SMTPSecure = 'tls';
+            $mail->Username = 'omninos@evasofts.com';
+            $mail->Password = 'omninos123';
+            $mail->setfrom('lillyjyoti123@gmail.com', 'Experience-noreply');
+            // $mail->addreplyto('harsh.omninos@gmail.com', 'healthkangaroo');
+            $mail->addAddress($to);
+            $mail->AddAttachment('https://bangolive.s3.us-east-2.amazonaws.com/1676471128IMG_20230215_182508.jpg', 'https://bangolive.s3.us-east-2.amazonaws.com/1676471128IMG_20230215_182508.jpg');
+
+            $mail->isHTML(true);
+            $mail->Subject = $subject;
+            $mail->Body = $msg;
+
+            $mail->send();
+
+            // print_r($mail);
+            // echo "mail send";
+            // exit;
+        } catch (Exception $e) {
+            $this->sendMessage(0, $mail->ErrorInfo, 0);
+            // exit;
+            // echo "Message could not be sent. Mailer Error: {$mail->ErrorInfo}";
+        }
+    }
+
+    public function sendmail()
+    {
+
+        $otp = rand(1111, 9999);
+        $subject = 'Verification Email';
+        $msg = "$otp is your One Time Password.";
+
+        $user = $this->db->get_where('users', ['id' => $this->input->post('userId')])->row_array();
+        if (empty($user)) {
+            $this->sendMessage(0, 'invalid userId', 0);
+        }
+
+        if (!$this->input->post('email') || empty($this->input->post('email'))) {
+            $this->sendMessage(0, 'email required', 0);
+        }
+
+        $data['userId'] = $user['id'];
+        $data['email'] = $this->input->post('email');
+        $data['otp'] = $otp;
+        $data['verified'] = 0;
+
+        $this->db->insert('email_verify', $data);
+        $this->Email($data['email'], $subject, $msg);
+
+        $this->sendMessage(1, 'email sent', 0);
+    }
+
+    public function verify_email()
+    {
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+
+            $user = $this->db->get_where('users', ['id' => $this->input->post('userId')])->row_array();
+            if (empty($user)) {
+                $this->sendMessage(0, 'invalid userId', 0);
+            }
+
+            $email = $this->db->select('*')
+                ->from('email_verify')
+                ->where(['userId' => $user['id'], 'email' => $this->input->post('email')])
+                ->order_by('id', 'desc')
+                ->get()->row_array();
+
+            if (empty($email)) {
+                $this->sendMessage(0, 'no email found', 0);
+            }
+            // print_r($email);
+            if ($email['otp'] == $this->input->post('otp')) {
+                $this->db->set('verified', 1)->where('id', $email['id'])->update('email_verify');
+                $this->sendMessage(1, 'email verified', 0);
+            } else {
+                $this->sendMessage(0, 'OTP not matched', 0);
+            }
+        } else {
+            $this->sendMessage(0, 'method not allowed', 0);
+        }
+    }
 }
