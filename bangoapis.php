@@ -8635,21 +8635,20 @@ class Bango extends CI_Controller
 						// check user mute
 						$get['muted'] = false;
 						$mute = $this->db->get_where('mute_users', ['userId' => $user['id'], 'liveId' => $get['id'], 'date' => date('Y-m-d')])->row_array();
-						if(!!$mute){
+						if (!!$mute) {
 							$get['muted'] = true;
 						}
 
 						// check user kicked from live
-						$kick = $this->db->get_where('kick_user',['userId' => $user['id'], 'liveId' => $get['id'], 'date' => date('Y-m-d')])->row_array();
-						if(empty($kick)){
+						$kick = $this->db->get_where('kick_user', ['userId' => $user['id'], 'liveId' => $get['id'], 'date' => date('Y-m-d')])->row_array();
+						if (empty($kick)) {
 							// check user banned from live
 							$ban = $this->db->get_where('ban_user', ['userId' => $get['userId'], 'otherUserId' => $user['id'], 'dateTo >' => date('Y-m-d')])->row_array();
-							if(empty($ban)){
+							if (empty($ban)) {
 
 								$final[] = $get;
 							}
 						}
-
 					}
 				}
 			}
@@ -11822,12 +11821,9 @@ class Bango extends CI_Controller
 						$get['vip_details'] = $vip;
 					}
 
-					$getUserLiveStatus = $this->db->select('status as UserLiveStatus')->from('userLive')->where('id', $list['followingUserId'])->get()->row_array();
-					if (!!$getUserLiveStatus) {
-						$get['UserLiveStatus'] = $getUserLiveStatus['UserLiveStatus'];
-					} else {
-						$get['UserLiveStatus'] = "";
-					}
+					$userLiveDetails = $this->db->select('id liveId, status')->from('userLive')->where('userId', $get['id'])->order_by('id', 'desc')->get()->row_array();
+					$get['UserLiveStatus'] = $userLiveDetails['status'] == 'live' ? 'live' : 'archieved';
+					$get['UserLiveId'] = $userLiveDetails['liveId'];
 
 					$main[] = $get;
 				}
@@ -12848,7 +12844,9 @@ class Bango extends CI_Controller
 						$checkOtherUserId['agency_code'] = "";
 					}
 
-
+					$userLiveDetails = $this->db->select('id liveId, status')->from('userLive')->where('userId', $this->input->post('otherUserId'))->order_by('id', 'desc')->get()->row_array();
+					$checkOtherUserId['UserLiveStatus'] = $userLiveDetails['status'] == 'live'? 'live':'archieved';
+					$checkOtherUserId['UserLiveId'] = $userLiveDetails['liveId'];
 
 					if ($this->input->post('userId') === $this->input->post('otherUserId')) {
 						echo json_encode([
@@ -12878,7 +12876,10 @@ class Bango extends CI_Controller
 							$checkOtherUserId['agency_name'] = "";
 							$checkOtherUserId['agency_code'] = "";
 						}
-
+						
+						$userLiveDetails = $this->db->select('id liveId, status')->from('userLive')->where('userId', $this->input->post('otherUserId'))->order_by('id', 'desc')->get()->row_array();
+						$checkOtherUserId['UserLiveStatus'] = $userLiveDetails['status'] == 'live'? 'live':'archieved';
+						$checkOtherUserId['UserLiveId'] = $userLiveDetails['liveId'];
 
 
 
@@ -13675,6 +13676,11 @@ class Bango extends CI_Controller
 						} else {
 							$getuser['UserLiveStatus'] = "";
 						}
+
+						$userLiveDetails = $this->db->select('id liveId, status')->from('userLive')->where('userId', $list['userId'])->order_by('id', 'desc')->get()->row_array();
+						$getuser['UserLiveStatus'] = $userLiveDetails['status'] == 'live' ? 'live' : 'archieved';
+						$getuser['UserLiveId'] = $userLiveDetails['liveId'];
+
 						$getFollowers[$key] = $getuser;
 					}
 
@@ -13746,6 +13752,10 @@ class Bango extends CI_Controller
 							$getuser['blockStatus'] = false;
 						}
 
+						$userLiveDetails = $this->db->select('id liveId, status')->from('userLive')->where('userId', $list['followingUserId'])->order_by('id', 'desc')->get()->row_array();
+						$getuser['UserLiveStatus'] = $userLiveDetails['status'] == 'live' ? 'live' : 'archieved';
+						$getuser['UserLiveId'] = $userLiveDetails['liveId'];
+
 						$getFollowers[$key] = $getuser;
 					}
 
@@ -13801,13 +13811,11 @@ class Bango extends CI_Controller
 							// ->where('userFollow.status', '1')
 							->get()->row_array();
 
-						$getUserLiveStatus = $this->db->select('status as UserLiveStatus')->from('userLive')->where('id', $list['followingUserId'])->get()->row_array();
-						if (!!$getUserLiveStatus) {
-							$checkFriend['UserLiveStatus'] = $getUserLiveStatus['UserLiveStatus'];
-						} else {
-							$checkFriend['UserLiveStatus'] = "";
-						}
 						if (!!$checkFriend) {
+
+						$userLiveDetails = $this->db->select('id liveId, status')->from('userLive')->where('userId', $list['userId'])->order_by('id', 'desc')->get()->row_array();
+						$checkFriend['UserLiveStatus'] = $userLiveDetails['status'] == 'live'? 'live':'archieved';
+						$checkFriend['UserLiveId'] = $userLiveDetails['liveId'];
 
 							$friend[] = $checkFriend;
 						} else {
@@ -18437,7 +18445,7 @@ class Bango extends CI_Controller
 			$giftdata['type'] = '1';
 			$giftdata['created'] = date('Y-m-d');
 
-			
+
 
 			$last_count_of_gift = $this->db->select('userGiftHistory.*')
 				->from('userGiftHistory')
@@ -18452,9 +18460,9 @@ class Bango extends CI_Controller
 				$giftdata['count'] += $count;
 			}
 
-			
+
 			// print_r($giftdata['count']);exit;
-			
+
 			if ($giftdata['count'] >= 250 && $giftdata['count'] <= 251) {
 
 				$multi = $per * 250;
@@ -18483,7 +18491,7 @@ class Bango extends CI_Controller
 				$am = (30 / 100) * $multi;
 
 				$luckCount = 1;
-			} else if($giftdata['count'] > 1049){
+			} else if ($giftdata['count'] > 1049) {
 				$giftdata['count'] = 0;
 			}
 
@@ -19266,11 +19274,12 @@ class Bango extends CI_Controller
 			}
 
 			$id = $this->db->get_where('userLive', ['id' => $liveId])->row_array();
-			if(empty($id)){
+			if (empty($id)) {
 				echo json_encode([
 					'status' => 0,
 					'message' => 'invalid liveId'
-				]);exit;
+				]);
+				exit;
 			}
 
 			$countStar = $this->db->select_sum('coin')
@@ -19303,13 +19312,13 @@ class Bango extends CI_Controller
 			}
 
 			$sum_gift = $this->db->select_sum('userGiftHistory.coin')
-								 ->select('users.id userId, users.username, users.name, users.image')
-								 ->from('userGiftHistory')
-								 ->join('users', 'users.id = userGiftHistory.giftUserId', 'left')
-								 ->where('userGiftHistory.liveId', $id['id'])
-								 ->group_by('userGiftHistory.giftUserId')
-								 ->get()->result_array();
-								 rsort($sum_gift);
+				->select('users.id userId, users.username, users.name, users.image')
+				->from('userGiftHistory')
+				->join('users', 'users.id = userGiftHistory.giftUserId', 'left')
+				->where('userGiftHistory.liveId', $id['id'])
+				->group_by('userGiftHistory.giftUserId')
+				->get()->result_array();
+			rsort($sum_gift);
 			echo json_encode([
 				'status' => 1,
 				'message' => 'gift sent',
@@ -19449,12 +19458,12 @@ class Bango extends CI_Controller
 
 				if (!!$friendsArray) {
 
-					
+
 					$ids = implode(',', $friendsArray);
 					// print_r($ids);
 
 					$frienddd = [];
-					foreach($friendsArray as $friend){
+					foreach ($friendsArray as $friend) {
 						// print_r($friend);exit;
 						$userss = $this->db->select('id userId , name, username, image')->get_where('users', ['id' => $friend])->row_array();
 						$frienddd[] = $userss;
@@ -19545,8 +19554,8 @@ class Bango extends CI_Controller
 				'followers_list' => $follow,
 				'following_count' => $mFollow,
 				'following_list' => $mFollow
-			]);exit;
-
+			]);
+			exit;
 		} else {
 			echo json_encode([
 				'status' => 0,
@@ -19557,34 +19566,38 @@ class Bango extends CI_Controller
 	}
 
 
-	public function mute_user(){
-		if($_SERVER['REQUEST_METHOD'] === 'POST'){
+	public function mute_user()
+	{
+		if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 			$user = $this->db->get_where('users', ['id' => $this->input->post('userId')])->row_array();
-			if(empty($user)){
+			if (empty($user)) {
 				echo json_encode([
 					'status' => 0,
 					'message' => 'invalid userId'
-				]);exit;
+				]);
+				exit;
 			}
 
 			$liveId = $this->db->get_where('userLive', ['id' => $this->input->post('liveId')])->row_array();
-			if(empty($liveId)){
+			if (empty($liveId)) {
 				echo json_encode([
 					'status' => 0,
 					'message' => 'invalid liveId'
-				]);exit;
+				]);
+				exit;
 			}
 
-			if($user['id'] == $liveId['userId']){
+			if ($user['id'] == $liveId['userId']) {
 				echo json_encode([
 					'status' => 0,
 					'message' => 'you can not mute yourself'
-				]);exit;
+				]);
+				exit;
 			}
 
 			$mute = $this->db->get_where('mute_users', ['userId' => $user['id'], 'liveId' => $liveId['id'], 'date' => date('Y-m-d')])->row_array();
-			if(empty($mute)){
+			if (empty($mute)) {
 
 				$data['userId'] = $user['id'];
 				$data['liveId'] = $liveId['id'];
@@ -19594,87 +19607,93 @@ class Bango extends CI_Controller
 				echo json_encode([
 					'status' => 1,
 					'message' => 'user muted'
-				]);exit;
-
-			}else{
+				]);
+				exit;
+			} else {
 
 				$this->db->delete('mute_users', ['id' => $mute['id']]);
 				echo json_encode([
 					'status' => 2,
 					'message' => 'user unmuted'
-				]);exit;
-
+				]);
+				exit;
 			}
-			
-		}else{
+		} else {
 			echo json_encode([
 				'status' => 0,
 				'message' => 'method not allowed'
-			]);exit;
+			]);
+			exit;
 		}
 	}
 
-	public function get_mute_user_list(){
-		if($_SERVER['REQUEST_METHOD'] === 'POST'){
+	public function get_mute_user_list()
+	{
+		if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 			$live = $this->db->get_where('userLive', ['id' => $this->input->post('liveId')])->row_array();
-			if(empty($live)){
+			if (empty($live)) {
 				echo json_encode([
 					'status' => 0,
 					'message' => 'invalid liveId'
-				]);exit;
+				]);
+				exit;
 			}
 
 			$mute_user = $this->db->select('mute_users.*, users.name, users.username, users.image')
-								  ->from('mute_users')
-								  ->join('users', 'users.id = mute_users.userId', 'left')
-								  ->where('liveId', $live['id'])
-								  ->get()->result_array();
+				->from('mute_users')
+				->join('users', 'users.id = mute_users.userId', 'left')
+				->where('liveId', $live['id'])
+				->get()->result_array();
 
-								  if(empty($mute_user)){
-									echo json_encode([
-										'status' => 0,
-										'message' => 'no mute users found'
-									]);exit;
-								  }else{
+			if (empty($mute_user)) {
+				echo json_encode([
+					'status' => 0,
+					'message' => 'no mute users found'
+				]);
+				exit;
+			} else {
 
-									echo json_encode([
-										'status' => 1,
-										'message' => 'mute user list found',
-										'details' => $mute_user
-									]);exit;
-
-								  }
-			
-		}else{
+				echo json_encode([
+					'status' => 1,
+					'message' => 'mute user list found',
+					'details' => $mute_user
+				]);
+				exit;
+			}
+		} else {
 			echo json_encode([
 				'status' => 0,
 				'message' => 'method not allowed'
-			]);exit;
+			]);
+			exit;
 		}
 	}
 
-	public function kick_user(){
-		if($_SERVER['REQUEST_METHOD'] === 'POST'){
+	public function kick_user()
+	{
+		if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 			$user = $this->db->get_where('users', ['id' => $this->input->post('userId')])->row_array();
-			if(empty($user)){
+			if (empty($user)) {
 				echo json_encode([
 					'status' => 0,
 					'message' => 'invalid userId'
-				]);exit;
+				]);
+				exit;
 			}
 
 			$live = $this->db->get_where('userLive', ['id' => $this->input->post('liveId')])->row_array();
-			if(empty($live)){
+			if (empty($live)) {
 				echo json_encode([
 					'status' => 0,
 					'message' => 'invalid liveId'
-				]);exit;
+				]);
+				exit;
 			}
 
-			$kick = $this->db->get_where('kick_user',['userId' => $user['id'], 'liveId' => $live['id'], 'date' => date('Y-m-d')])->row_array();
-			if(empty($kick)){
+			$kick = $this->db->get_where('kick_user', ['userId' => $user['id'], 'liveId' => $live['id'], 'date' => date('Y-m-d')])->row_array();
+			if (empty($kick)) {
 
 				$data['userId'] = $user['id'];
 				$data['liveId'] = $live['id'];
@@ -19684,106 +19703,114 @@ class Bango extends CI_Controller
 				echo json_encode([
 					'status' => 1,
 					'message' => 'user has been kicked out'
-				]);exit;
-			}else{
+				]);
+				exit;
+			} else {
 
 				$this->db->delete('kick_user', ['id' => $kick['id']]);
 				echo json_encode([
 					'status' => 2,
 					'message' => 'user kick cancel'
-				]);exit;
-
+				]);
+				exit;
 			}
-
-		}else{
+		} else {
 			echo json_encode([
 				'status' => 0,
 				'message' => 'method not allowed'
-			]);exit;
+			]);
+			exit;
 		}
 	}
 
-	public function get_kick_user_list(){
-		if($_SERVER['REQUEST_METHOD'] === 'POST'){
+	public function get_kick_user_list()
+	{
+		if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 			$live = $this->db->get_where('userLive', ['id' => $this->input->post('liveId')])->row_array();
-			if(empty($live)){
+			if (empty($live)) {
 				echo json_encode([
 					'status' => 0,
 					'message' => 'invalid liveId'
-				]);exit;
+				]);
+				exit;
 			}
 
 			$kick_user = $this->db->select('kick_user.*, users.name, users.username, users.image')
-									->from('kick_user')
-									->join('users', 'users.id = kick_user.userId', 'left')
-									->where('liveId', $live['id'])
-									->get()->result_array();
+				->from('kick_user')
+				->join('users', 'users.id = kick_user.userId', 'left')
+				->where('liveId', $live['id'])
+				->get()->result_array();
 
-									if(empty($kick_user)){
-										echo json_encode([
-											'status' => 0,
-											'message' => 'no users kicked'
-										]);exit;
-									}else{
-										echo json_encode([
-											'status' => 1,
-											'message' => 'kicked users found',
-											'details' => $kick_user
-										]);exit;
-									}
-			
-		}else{
+			if (empty($kick_user)) {
+				echo json_encode([
+					'status' => 0,
+					'message' => 'no users kicked'
+				]);
+				exit;
+			} else {
+				echo json_encode([
+					'status' => 1,
+					'message' => 'kicked users found',
+					'details' => $kick_user
+				]);
+				exit;
+			}
+		} else {
 			echo json_encode([
 				'status' => 0,
 				'message' => 'method not allowed'
-			]);exit;
+			]);
+			exit;
 		}
 	}
 
-	public function ban_user(){
-		if($_SERVER['REQUEST_METHOD'] === 'POST'){
+	public function ban_user()
+	{
+		if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 			$user = $this->db->get_where('users', ['id' => $this->input->post('userId')])->row_array();
-			if(empty($user)){
+			if (empty($user)) {
 				echo json_encode([
 					'status' => 0,
 					'message' => 'invalid userId'
-				]);exit;
+				]);
+				exit;
 			}
 
 			$otherUser = $this->db->get_where('users', ['id' => $this->input->post('otherUserId')])->row_array();
-			if(empty($otherUser)){
+			if (empty($otherUser)) {
 				echo json_encode([
 					'status' => 0,
 					'message' => 'invalid otherUserId'
-				]);exit;
+				]);
+				exit;
 			}
 
 
 
 			$ban = $this->db->get_where('ban_user', ['userId' => $user['id'], 'otherUserId' => $otherUser['id'], 'dateTo >' => date('Y-m-d')])->row_array();
 			// print_r($this->db->last_query());exit;
-			if(!!$ban){
+			if (!!$ban) {
 				$this->db->delete('ban_user', ['id' => $ban['id']]);
 				echo json_encode([
 					'status' => 2,
 					'message' => 'ban removed from user'
-				]);exit;
-			}else{
-				if($this->input->post('type') ==  '1'){
+				]);
+				exit;
+			} else {
+				if ($this->input->post('type') ==  '1') {
 
-					$dateTo = date('Y-m-d', strtotime('+7 days')); 
-					
-				}else if($this->input->post('type') == '2'){
+					$dateTo = date('Y-m-d', strtotime('+7 days'));
+				} else if ($this->input->post('type') == '2') {
 
-					$dateTo = date('Y-m-d', strtotime('+28 days')); 
-
-				}else{
+					$dateTo = date('Y-m-d', strtotime('+28 days'));
+				} else {
 					echo json_encode([
 						'status' => 0,
 						'message' => 'invalid type'
-					]);exit;
+					]);
+					exit;
 				}
 
 				$data['userId'] = $user['id'];
@@ -19795,76 +19822,76 @@ class Bango extends CI_Controller
 				echo json_encode([
 					'status' => 1,
 					'message' => 'user banned'
-				]);exit;
+				]);
+				exit;
 			}
-			
-			
-		}else{
+		} else {
 			echo json_encode([
 				'status' => 0,
 				'message' => 'method not allowed'
-			]);exit;
+			]);
+			exit;
 		}
 	}
 
-	public function get_ban_user_list(){
-		if($_SERVER['REQUEST_METHOD'] === 'POST'){
+	public function get_ban_user_list()
+	{
+		if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 			$user = $this->db->get_where('users', ['id' => $this->input->post('userId')])->row_array();
-			if(empty($user)){
+			if (empty($user)) {
 				echo json_encode([
 					'status' => 0,
 					'message' => 'invalid userId'
-				]);exit;
+				]);
+				exit;
 			}
 
 			$ban_user = $this->db->select('ban_user.*, users.name, users.username, users.image')
-								->from('ban_user')
-								->join('users', 'users.id = ban_user.userId', 'left')
-								->where('userId', $user['id'])
-								->get()->result_array();
+				->from('ban_user')
+				->join('users', 'users.id = ban_user.userId', 'left')
+				->where('userId', $user['id'])
+				->get()->result_array();
 
-								$final = [];
-								if(empty($ban_user)){
-									echo json_encode([
-										'status' => 0,
-										'message' => 'no banned users found'
-									]);exit;
-								}else{
-									foreach($ban_user as $ban){
+			$final = [];
+			if (empty($ban_user)) {
+				echo json_encode([
+					'status' => 0,
+					'message' => 'no banned users found'
+				]);
+				exit;
+			} else {
+				foreach ($ban_user as $ban) {
 
-										if($ban['dateTo'] > date('Y-m-d')){
-											$final[] = $ban;
-										}else{
+					if ($ban['dateTo'] > date('Y-m-d')) {
+						$final[] = $ban;
+					} else {
 
-											$this->db->delete('ban_user', ['id' => $ban['id']]);
-										}
-									}
+						$this->db->delete('ban_user', ['id' => $ban['id']]);
+					}
+				}
+			}
 
-								}
+			if (empty($ban)) {
+				echo json_encode([
+					'status' => 0,
+					'message' => 'no banned users found'
+				]);
+				exit;
+			}
 
-								if(empty($ban)){
-									echo json_encode([
-										'status' => 0,
-										'message' => 'no banned users found'
-									]);exit;
-								}
-
-								echo json_encode([
-									'status' => 1,
-									'message' => 'banned user list found',
-									'details' => $final
-								]);exit;
-
-
-
-
-			
-		}else{
+			echo json_encode([
+				'status' => 1,
+				'message' => 'banned user list found',
+				'details' => $final
+			]);
+			exit;
+		} else {
 			echo json_encode([
 				'status' => 0,
 				'message' => 'method not allowed'
-			]);exit;
+			]);
+			exit;
 		}
 	}
 
